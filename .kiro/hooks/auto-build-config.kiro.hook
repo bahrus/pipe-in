@@ -4,7 +4,7 @@
     "description": "Automatically runs npm run build when emc.mjs is saved, regenerating the JSON configuration file",
     "when": {
         "type": "fileEdited",
-        "patterns": ["emc.mjs"]
+        "patterns": ["emc.mjs", "⇥.mjs"]
     },
     "then": {
         "type": "runCommand",

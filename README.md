@@ -1,4 +1,4 @@
-# pipe-in ( | )
+# pipe-in ( ⇥ )
 
 Attribute-based wrapper around the browser's [partial update support](https://developer.chrome.com/blog/declarative-partial-updates).
 
@@ -13,12 +13,12 @@ Canonical attribute
 For well controlled environments, for example within a carefully managed custom element registry, where namespace clashes are easy to avoid:  
 
 ```html
-<article |=https://link.springer.com/article/10.1007/s00300-003-0563-3 pipe-in-shadowrootmode=open>
+<article ⇥=https://link.springer.com/article/10.1007/s00300-003-0563-3 pipe-in-shadowrootmode=open>
     <span slot="AdInsert"><a href="https://www.target.com/b/pedialax/-/N-55lp4">Pedia-Lax</a></span>    
 </article>
 ```
 
-In what follows, we will refer to the "base".  In the examples above, the base is pipe-in and | respectively.
+In what follows, we will refer to the "base".  In the examples above, the base is pipe-in and ⇥ respectively.
 
 ## Defaults
 
@@ -45,7 +45,7 @@ Allowing attributes to specify such things as "run scripts", or specifying allow
     }
 }
 </script>
-<article |=springer/article/10.1007/s00300-003-0563-3 pipe-in-shadowrootmode=open>
+<article ⇥=springer/article/10.1007/s00300-003-0563-3 pipe-in-shadowrootmode=open>
     <span slot="AdInsert"><a href="https://www.target.com/b/pedialax/-/N-55lp4">Pedia-Lax</a></span>    
 </article>
 ```
