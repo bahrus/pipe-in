@@ -30,3 +30,22 @@ The following table indicates the default values and how to override.
 |----|-------|--------|
 |Method|StreamHTML|`[base]-method=StreamHTML \| streamReplaceWithHTML \| streamBeforeHTML \| streamPrependHTML \| streamAppendHTML \| streamAfterHTML \| streamHTMLUnsafe \| streamReplaceWithHTMLUnsafe \| streamBeforeHTMLUnsafe \| streamPrependHTMLUnsafe \| streamAppendHTMLUnsafe streamAfterHTMLUnsafe` |
 |Sanitizer|[Default](https://developer.mozilla.org/en-US/docs/Web/API/HTML_Sanitizer_API/Default_sanitizer_configuration)|`[base]-sanitizer='{"elements": ["em", "i", "b", "strong"]}'`|
+|Script support|No support|[base]-run-scripts}
+
+
+## Security
+
+Allowing attributes to specify such things as "run scripts", or specifying allowed elements is a potential xss security concern.  Even utilizing unsafe methods must be constrained. To mitigate that risk, these options are only allowed if the url is a "bare specifier" with a mapping to an import map script:
+
+```html
+<script type=importmap>
+{
+    "imports": {
+        "spring/": "https://link.springer.com/"
+    }
+}
+</script>
+<article |=springer/article/10.1007/s00300-003-0563-3 pipe-in-shadowrootmode=open>
+    <span slot="AdInsert"><a href="https://www.target.com/b/pedialax/-/N-55lp4">Pedia-Lax</a></span>    
+</article>
+```
