@@ -51,6 +51,8 @@ class PipeIn {
     async hydrate(self){
         const { enhancedElement, url, method, sanitizer, runScripts, shadowrootmode, injectBase, start, end } = self;
 
+        const stateAttr = this.#getStateAttr(enhancedElement);
+
         // Resolve the URL - check if it's a bare specifier via import map
         const resolvedUrl = this.#resolveUrl(url);
         const isBareSpecifier = resolvedUrl !== url;
@@ -68,6 +70,9 @@ class PipeIn {
             );
             return /** @type {PAP} */ ({resolved: false});
         }
+
+        // Set loading state
+        this.#setState(enhancedElement, stateAttr, 'loading');
 
         try {
             // Determine the streaming target
@@ -111,6 +116,20 @@ class PipeIn {
             // optionally snipping between start/end markers and rewriting relative URLs
             if (response.body) {
                 let stream = response.body.pipeThrough(new TextDecoderStream());
+
+                // Transition to streaming state once first chunk arrives
+                let streamingStateSet = false;
+                const stateTransform = new TransformStream({
+                    transform: (chunk, controller) => {
+                        if (!streamingStateSet) {
+                            this.#setState(enhancedElement, stateAttr, 'streaming');
+                            streamingStateSet = true;
+                        }
+                        controller.enqueue(chunk);
+                    }
+                });
+                stream = stream.pipeThrough(stateTransform);
+
                 if (start || end) {
                     const {snipTransform} = await import('pipe-in/snip.js');
                     stream = stream.pipeThrough(snipTransform(start, end));
@@ -130,9 +149,14 @@ class PipeIn {
                 await stream.pipeTo(writableSink);
             }
 
+            // Set complete state
+            this.#setState(enhancedElement, stateAttr, 'complete');
+
             return /** @type {PAP} */ ({resolved: true});
         } catch (e) {
             console.error(`[pipe-in] Error streaming content from "${url}":`, e);
+            // Set error state
+            this.#setState(enhancedElement, stateAttr, 'error');
             return /** @type {PAP} */ ({resolved: false});
         }
     }
@@ -155,6 +179,33 @@ class PipeIn {
         } catch {
             // If resolution fails, return original URL (relative path)
             return url;
+        }
+    }
+
+    /**
+     * Determines the state attribute name based on which base attribute is present.
+     * Checks for the known base prefixes ('pipe-in' and '⇥') on the element.
+     * @param {Element} el
+     * @returns {string}
+     */
+    #getStateAttr(el) {
+        if (el.hasAttribute('⇥')) return '⇥-state';
+        return 'pipe-in-state';
+    }
+
+    /**
+     * Sets the piping state on the enhanced element via both aria-busy 
+     * and a custom state attribute for CSS targeting.
+     * @param {Element} el
+     * @param {string} stateAttr
+     * @param {'loading' | 'streaming' | 'complete' | 'error'} state
+     */
+    #setState(el, stateAttr, state) {
+        el.setAttribute(stateAttr, state);
+        if (state === 'loading' || state === 'streaming') {
+            el.setAttribute('aria-busy', 'true');
+        } else {
+            el.removeAttribute('aria-busy');
         }
     }
 }

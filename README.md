@@ -145,6 +145,46 @@ Relative links in `sample.html` like `href="styles.css"` and `src="icon.svg"` wi
 
 Typically you'll want `streamHTMLUnsafe` when using `[base]-base`, since the default sanitizer strips elements like `<link>` and `<img>` that are often present in content with relative URLs.
 
+## Piping state
+
+pipe-in sets attributes on the enhanced element to indicate the current state of the content fetch. This enables CSS-based loading indicators and accessible feedback.
+
+### Attributes set
+
+| Attribute | Values | Purpose |
+|-----------|--------|---------|
+| `aria-busy` | `true` (during loading/streaming), removed on complete/error | Standard ARIA attribute for assistive technologies |
+| `[base]-state` | `loading` \| `streaming` \| `complete` \| `error` | Fine-grained CSS hook for styling each phase |
+
+### State transitions
+
+1. **`loading`** — Fetch has been initiated, waiting for response
+2. **`streaming`** — First chunk received, content is being piped in
+3. **`complete`** — All content has been streamed successfully
+4. **`error`** — Fetch or streaming failed
+
+### Example CSS
+
+```css
+[pipe-in-state="loading"] {
+    opacity: 0.5;
+}
+[pipe-in-state="streaming"] {
+    /* content is appearing progressively */
+}
+[pipe-in-state="complete"] {
+    opacity: 1;
+}
+[pipe-in-state="error"] {
+    border: 1px solid red;
+}
+
+/* Or using aria-busy for simpler loading/done toggle */
+[aria-busy="true"] {
+    background: url('spinner.gif') no-repeat center;
+}
+```
+
 ## Support for snipping
 
 When importing a full HTML page or a large fragment, you often only need a specific portion. The `[base]-start` and `[base]-end` attributes let you extract a slice of the streamed content. Both are optional and can be used independently or together:
