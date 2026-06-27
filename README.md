@@ -110,6 +110,34 @@ You can lock it down by adding an origin allowlist so only your site can call th
 
 Note: Because the URL above uses a bare specifier mapped through an import map, the security constraints on sanitizer/script overrides are also satisfied.
 
+## Basing the shadow root
+
+If `[base]-shadowrootmode` and `[base]-base` are both present, pipe-in will:
+
+1. Attach a shadow root with the specified mode
+2. Insert a `<base href="...">` element pointing to the provided URL, so relative paths in the streamed HTML (CSS links, images, etc.) resolve correctly against the source origin
+3. Insert a `<div part="content">` and stream the fetched content into it
+
+This gives the consumer a `::part(content)` CSS hook for styling from outside the shadow DOM.
+
+```html
+<article pipe-in=https://example.com/article.html
+         pipe-in-shadowrootmode=open
+         pipe-in-base=https://example.com/>
+    <p>Loading...</p>
+</article>
+```
+
+The resulting shadow DOM structure:
+
+```html
+#shadow-root (open)
+  <base href="https://example.com/">
+  <div part="content">
+    <!-- streamed content here -->
+  </div>
+```
+
 
 ## Viewing Demos Locally
 

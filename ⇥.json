@@ -17,7 +17,8 @@
             "_runScripts": {
                 "instanceOf": "Boolean"
             },
-            "shadowrootmode": "${base}-shadowrootmode"
+            "shadowrootmode": "${base}-shadowrootmode",
+            "baseUrl": "${base}-base"
         }
     },
     "customData": {

@@ -49,7 +49,7 @@ class PipeIn {
      * @returns {import('./types/pipe-in/types').ProPAP}
      */
     async hydrate(self){
-        const { enhancedElement, url, method, sanitizer, runScripts, shadowrootmode } = self;
+        const { enhancedElement, url, method, sanitizer, runScripts, shadowrootmode, baseUrl } = self;
 
         // Resolve the URL - check if it's a bare specifier via import map
         const resolvedUrl = this.#resolveUrl(url);
@@ -68,11 +68,22 @@ class PipeIn {
         }
 
         try {
-            // If shadowrootmode is specified, attach a shadow root first
-            let target = /** @type {Element} */ (enhancedElement);
+            // Determine the streaming target
+            let target = /** @type {any} */ (enhancedElement);
             if (shadowrootmode) {
                 const shadow = enhancedElement.attachShadow({ mode: shadowrootmode });
-                target = /** @type {any} */ (shadow);
+                // If baseUrl is specified, inject a <base> element and a content div
+                if (baseUrl) {
+                    const baseEl = document.createElement('base');
+                    baseEl.href = baseUrl;
+                    shadow.appendChild(baseEl);
+                    const contentDiv = document.createElement('div');
+                    contentDiv.setAttribute('part', 'content');
+                    shadow.appendChild(contentDiv);
+                    target = contentDiv;
+                } else {
+                    target = shadow;
+                }
             }
 
             const response = await fetch(resolvedUrl);
@@ -92,11 +103,11 @@ class PipeIn {
 
             // Get the streaming writable sink from the target element
             const streamMethod = /** @type {string} */ (method);
-            if (typeof /** @type {any} */ (target)[streamMethod] !== 'function') {
+            if (typeof target[streamMethod] !== 'function') {
                 throw new Error(`Method "${streamMethod}" is not supported on the target element.`);
             }
 
-            const writableSink = /** @type {any} */ (target)[streamMethod](options);
+            const writableSink = target[streamMethod](options);
 
             // Pipe the response body through a text decoder into the writable sink
             if (response.body) {
