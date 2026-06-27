@@ -18,7 +18,10 @@
                 "instanceOf": "Boolean"
             },
             "shadowrootmode": "${base}-shadowrootmode",
-            "baseUrl": "${base}-base"
+            "injectBase": "${base}-base",
+            "_injectBase": {
+                "instanceOf": "Boolean"
+            }
         }
     },
     "customData": {

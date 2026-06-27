@@ -1,0 +1,19 @@
+h2 {
+    color: steelblue;
+    border-bottom: 2px solid steelblue;
+    padding-bottom: 0.25rem;
+}
+
+p {
+    font-family: system-ui, sans-serif;
+    line-height: 1.5;
+}
+
+.badge {
+    display: inline-block;
+    background: #e0f0ff;
+    border: 1px solid steelblue;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+}

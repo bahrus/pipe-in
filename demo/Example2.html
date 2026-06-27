@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Example 1</title>
+    <title>Example 2</title>
     <!-- #include virtual="/imports.html" -->
 
     <script type=module>
@@ -16,12 +16,16 @@
                 src="pipe-in/emc.json" 
         ></script>
     </be-hive>
+
+    <!-- Using streamHTMLUnsafe so the sanitizer doesn't strip <link> and <img> -->
+    <!-- Same-origin absolute path — security gate allows unsafe for same-origin -->
     <article 
-        pipe-in=https://html.spec.whatwg.org
+        pipe-in=/demo/partials/sample.html
         pipe-in-shadowrootmode=open
         pipe-in-base
+        pipe-in-method=streamHTMLUnsafe
     >
-        
+        <p>Loading...</p>
     </article>
 </body>
 </html>

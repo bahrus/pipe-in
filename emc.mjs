@@ -20,7 +20,8 @@ export const emc = {
             runScripts: '${base}-run-scripts',
             _runScripts: { instanceOf: 'Boolean' },
             shadowrootmode: '${base}-shadowrootmode',
-            baseUrl: '${base}-base',
+            injectBase: '${base}-base',
+            _injectBase: { instanceOf: 'Boolean' },
         }
     },
     customData: {

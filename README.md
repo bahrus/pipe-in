@@ -28,14 +28,23 @@ The following table indicates the default values and how to override.
 
 |Name|Default|Override|
 |----|-------|--------|
-|Method|StreamHTML|`[base]-method=StreamHTML \| streamReplaceWithHTML \| streamBeforeHTML \| streamPrependHTML \| streamAppendHTML \| streamAfterHTML \| streamHTMLUnsafe \| streamReplaceWithHTMLUnsafe \| streamBeforeHTMLUnsafe \| streamPrependHTMLUnsafe \| streamAppendHTMLUnsafe streamAfterHTMLUnsafe` |
+|Method|streamHTML|`[base]-method=streamHTML \| streamReplaceWithHTML \| streamBeforeHTML \| streamPrependHTML \| streamAppendHTML \| streamAfterHTML \| streamHTMLUnsafe \| streamReplaceWithHTMLUnsafe \| streamBeforeHTMLUnsafe \| streamPrependHTMLUnsafe \| streamAppendHTMLUnsafe \| streamAfterHTMLUnsafe` |
 |Sanitizer|[Default](https://developer.mozilla.org/en-US/docs/Web/API/HTML_Sanitizer_API/Default_sanitizer_configuration)|`[base]-sanitizer='{"elements": ["em", "i", "b", "strong"]}'`|
-|Script support|No support|[base]-run-scripts}
+|Script support|No support|`[base]-run-scripts`|
+|Shadow root mode|None|`[base]-shadowrootmode=open \| closed`|
+|URL rewriting|Off|`[base]-base`|
+
+Note: The default sanitizer (used by `streamHTML` and other non-`Unsafe` methods) strips elements like `<link>`, `<img>`, `<script>`, and `<style>`. If you need these elements preserved, use one of the `*Unsafe` methods or pass a custom sanitizer configuration.
 
 
 ## Security
 
-Allowing attributes to specify such things as "run scripts", or specifying allowed elements is a potential xss security concern.  Even utilizing unsafe methods must be constrained. To mitigate that risk, these options are only allowed if the url is a "bare specifier" with a mapping to an import map script:
+Allowing attributes to specify such things as "run scripts", or specifying allowed elements is a potential xss security concern.  Even utilizing unsafe methods must be constrained. To mitigate that risk, these options are only allowed if:
+
+1. The URL is a **same-origin path** (starts with `/`), or
+2. The URL is a **bare specifier** with a mapping in an import map
+
+Cross-origin absolute URLs (starting with `http://` or `https://`) are restricted to the default `streamHTML` method with the default sanitizer and no script execution.
 
 ```html
 <script type=importmap>
@@ -115,28 +124,26 @@ Note: Because the URL above uses a bare specifier mapped through an import map, 
 If `[base]-shadowrootmode` and `[base]-base` are both present, pipe-in will:
 
 1. Attach a shadow root with the specified mode
-2. Insert a `<base href="...">` element pointing to the provided URL, so relative paths in the streamed HTML (CSS links, images, etc.) resolve correctly against the source origin
-3. Insert a `<div part="content">` and stream the fetched content into it
+2. Insert a `<div part="content">` as the streaming target
+3. Rewrite relative URLs (`href`, `src`, `action`, `poster`, and `url()` in inline styles) in the streamed HTML to absolute URLs, using the directory of the fetch URL as the base
+4. Stream the rewritten content into the div
 
-This gives the consumer a `::part(content)` CSS hook for styling from outside the shadow DOM.
+This gives the consumer a `::part(content)` CSS hook for styling from outside the shadow DOM. The URL rewriting module (`rewrite-urls.js`) is only loaded when `[base]-base` is present.
+
+Note: `<base>` elements don't work inside shadow roots per the HTML spec, so pipe-in uses a streaming `TransformStream` to rewrite URLs on the fly as content is piped in.
 
 ```html
-<article pipe-in=https://example.com/article.html
+<article pipe-in=/demo/partials/sample.html
          pipe-in-shadowrootmode=open
-         pipe-in-base=https://example.com/>
+         pipe-in-base
+         pipe-in-method=streamHTMLUnsafe>
     <p>Loading...</p>
 </article>
 ```
 
-The resulting shadow DOM structure:
+Relative links in `sample.html` like `href="styles.css"` and `src="icon.svg"` will be resolved to `/demo/partials/styles.css` and `/demo/partials/icon.svg` respectively.
 
-```html
-#shadow-root (open)
-  <base href="https://example.com/">
-  <div part="content">
-    <!-- streamed content here -->
-  </div>
-```
+Typically you'll want `streamHTMLUnsafe` when using `[base]-base`, since the default sanitizer strips elements like `<link>` and `<img>` that are often present in content with relative URLs.
 
 
 ## Viewing Demos Locally

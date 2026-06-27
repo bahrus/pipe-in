@@ -49,20 +49,22 @@ class PipeIn {
      * @returns {import('./types/pipe-in/types').ProPAP}
      */
     async hydrate(self){
-        const { enhancedElement, url, method, sanitizer, runScripts, shadowrootmode, baseUrl } = self;
+        const { enhancedElement, url, method, sanitizer, runScripts, shadowrootmode, injectBase } = self;
 
         // Resolve the URL - check if it's a bare specifier via import map
         const resolvedUrl = this.#resolveUrl(url);
         const isBareSpecifier = resolvedUrl !== url;
 
         // Security gate: runScripts, sanitizer overrides, and unsafe methods
-        // require the URL to be a bare specifier mapped through an import map
+        // require the URL to be either a bare specifier (mapped through import map)
+        // or a same-origin URL (absolute path starting with /)
         const isUnsafeMethod = method.includes('Unsafe');
-        if (!isBareSpecifier && (runScripts || sanitizer !== undefined || isUnsafeMethod)) {
+        const isSameOrigin = url.startsWith('/');
+        if (!isBareSpecifier && !isSameOrigin && (runScripts || sanitizer !== undefined || isUnsafeMethod)) {
             console.warn(
                 `[pipe-in] Security: "${method}" with runScripts=${runScripts} ` +
-                `requires a bare specifier URL mapped via import map. ` +
-                `URL "${url}" is not a bare specifier.`
+                `requires a bare specifier URL mapped via import map or a same-origin path. ` +
+                `URL "${url}" is not permitted.`
             );
             return /** @type {PAP} */ ({resolved: false});
         }
@@ -72,11 +74,7 @@ class PipeIn {
             let target = /** @type {any} */ (enhancedElement);
             if (shadowrootmode) {
                 const shadow = enhancedElement.attachShadow({ mode: shadowrootmode });
-                // If baseUrl is specified, inject a <base> element and a content div
-                if (baseUrl) {
-                    const baseEl = document.createElement('base');
-                    baseEl.href = baseUrl;
-                    shadow.appendChild(baseEl);
+                if (injectBase) {
                     const contentDiv = document.createElement('div');
                     contentDiv.setAttribute('part', 'content');
                     shadow.appendChild(contentDiv);
@@ -109,11 +107,20 @@ class PipeIn {
 
             const writableSink = target[streamMethod](options);
 
-            // Pipe the response body through a text decoder into the writable sink
+            // Pipe the response body through a text decoder into the writable sink,
+            // optionally rewriting relative URLs if injectBase is set
             if (response.body) {
-                await response.body
-                    .pipeThrough(new TextDecoderStream())
-                    .pipeTo(writableSink);
+                let stream = response.body.pipeThrough(new TextDecoderStream());
+                if (injectBase) {
+                    // Construct a full absolute base URL for the URL constructor
+                    let baseHref = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+                    if (baseHref.startsWith('/')) {
+                        baseHref = location.origin + baseHref;
+                    }
+                    const {rewriteUrlsTransform} = await import('pipe-in/rewrite-urls.js');
+                    stream = stream.pipeThrough(rewriteUrlsTransform(baseHref));
+                }
+                await stream.pipeTo(writableSink);
             }
 
             return /** @type {PAP} */ ({resolved: true});
