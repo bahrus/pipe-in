@@ -15,6 +15,21 @@
   "type": "module",
   "main": "pipe-in.js",
   "scripts": {
-    "test": "playwright test"
+    "build": "node emc.mjs > emc.json",
+    "serve": "node ./node_modules/spa-ssi/serve.js",
+    "test": "playwright test",
+    "safari": "npx playwright wk http://localhost:8000",
+    "update": "ncu -u && npm install"
+  },
+  "dependencies": {
+    "assign-gingerly": "0.0.53",
+    "be-hive": "0.1.15",
+    "inferencer": "0.0.13",
+    "mount-observer": "0.1.41",
+    "roundabout-lib": "0.0.23"
+  },
+  "devDependencies": {
+    "spa-ssi": "0.0.27",
+    "@playwright/test": "1.61.1"
   }
 }

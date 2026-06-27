@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pipe-in Test</title>
+    <!-- #include virtual="/imports.html" -->
+    <be-hive>
+        <script type=emc src="pipe-in/emc.json"></script>
+    </be-hive>
+    <script type=module>
+        import 'be-hive/be-hive.js';
+    </script>
+</head>
+<body>
+    <h1>pipe-in Basic Test</h1>
+
+    <!-- Basic usage: stream HTML from a same-origin URL -->
+    <article pipe-in="/tests/partials/content.html">
+        <p>Loading...</p>
+    </article>
+
+    <!-- With shadow root -->
+    <article pipe-in="/tests/partials/shadow-content.html" pipe-in-shadowrootmode="open">
+        <span slot="fallback">Loading with shadow...</span>
+    </article>
+</body>
+</html>
