@@ -3,7 +3,7 @@
 /**
  * Creates a TransformStream that rewrites relative URLs in HTML to absolute URLs.
  * Handles href, src, srcset, action, poster attributes and url() in inline styles.
- * Also strips structural document tags (DOCTYPE, html, head, body) to avoid browser parser interference.
+ * Also replaces structural document tags (html, body) with divs and strips DOCTYPE/head.
  * @param {string} baseHref - The base URL to resolve relative paths against
  * @returns {TransformStream<string, string>}
  */
@@ -30,18 +30,24 @@ export function rewriteUrlsTransform(baseHref) {
 }
 
 /**
- * Strips structural document tags to prevent the HTML parser
- * from stripping or repositioning content.
- * Note: <head> is intentionally not renamed — its children (meta, link, script, title)
+ * Replaces structural document tags with neutral container elements
+ * to prevent the HTML parser from stripping or repositioning them,
+ * while preserving any attributes (class, lang, etc.) on the original tags.
+ * Note: <head> is stripped entirely — its children (meta, link, script, title)
  * get hoisted by the parser regardless of container, and they still function correctly.
  * @param {string} html
  * @returns {string}
  */
 function renameStructuralTags(html) {
     html = html.replace(/<!DOCTYPE[^>]*>/gi, '');
-    html = html.replace(/<(\/?)html(\s|>)/gi, '');
-    html = html.replace(/<(\/?)head(\s|>)/gi, '');
-    html = html.replace(/<(\/?)body(\s|>)/gi, '');
+    // Replace <html ...> with <div ...> and </html> with </div>
+    html = html.replace(/<html(\s[^>]*)?>/gi, '<div$1>');
+    html = html.replace(/<\/html\s*>/gi, '</div>');
+    // Strip <head> and </head> entirely
+    html = html.replace(/<\/?head(\s[^>]*)?>/gi, '');
+    // Replace <body ...> with <div ...> and </body> with </div>
+    html = html.replace(/<body(\s[^>]*)?>/gi, '<div$1>');
+    html = html.replace(/<\/body\s*>/gi, '</div>');
     return html;
 }
 
