@@ -145,6 +145,27 @@ Relative links in `sample.html` like `href="styles.css"` and `src="icon.svg"` wi
 
 Typically you'll want `streamHTMLUnsafe` when using `[base]-base`, since the default sanitizer strips elements like `<link>` and `<img>` that are often present in content with relative URLs.
 
+## Support for snipping
+
+When importing a full HTML page or a large fragment, you often only need a specific portion. The `[base]-start` and `[base]-end` attributes let you extract a slice of the streamed content. Both are optional and can be used independently or together:
+
+- **`[base]-start`** — Content before this marker is discarded. The marker itself and everything after it is kept.
+- **`[base]-end`** — Content from this marker onward is discarded. Only content before it is kept.
+
+When both are present, only the content between start (inclusive) and end (exclusive) is emitted.
+
+Snipping runs before URL rewriting, so markers match the original source HTML.
+
+```html
+<article pipe-in=/demo/partials/sample.html
+         pipe-in-shadowrootmode=open
+         pipe-in-start="<body"
+         pipe-in-end="</body>"
+         pipe-in-base
+         pipe-in-method=streamHTMLUnsafe>
+    <p>Loading...</p>
+</article>
+```
 
 ## Viewing Demos Locally
 
@@ -163,3 +184,4 @@ Typically you'll want `streamHTMLUnsafe` when using `[base]-base`, since the def
 ```
 > npm run test
 ```
+

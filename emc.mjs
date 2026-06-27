@@ -22,6 +22,8 @@ export const emc = {
             shadowrootmode: '${base}-shadowrootmode',
             injectBase: '${base}-base',
             _injectBase: { instanceOf: 'Boolean' },
+            start: '${base}-start',
+            end: '${base}-end',
         }
     },
     customData: {

@@ -49,7 +49,7 @@ class PipeIn {
      * @returns {import('./types/pipe-in/types').ProPAP}
      */
     async hydrate(self){
-        const { enhancedElement, url, method, sanitizer, runScripts, shadowrootmode, injectBase } = self;
+        const { enhancedElement, url, method, sanitizer, runScripts, shadowrootmode, injectBase, start, end } = self;
 
         // Resolve the URL - check if it's a bare specifier via import map
         const resolvedUrl = this.#resolveUrl(url);
@@ -108,9 +108,13 @@ class PipeIn {
             const writableSink = target[streamMethod](options);
 
             // Pipe the response body through a text decoder into the writable sink,
-            // optionally rewriting relative URLs if injectBase is set
+            // optionally snipping between start/end markers and rewriting relative URLs
             if (response.body) {
                 let stream = response.body.pipeThrough(new TextDecoderStream());
+                if (start || end) {
+                    const {snipTransform} = await import('pipe-in/snip.js');
+                    stream = stream.pipeThrough(snipTransform(start, end));
+                }
                 if (injectBase) {
                     // Derive a proper absolute base URL
                     const absolute = resolvedUrl.startsWith('http') 
