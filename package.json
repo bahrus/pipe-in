@@ -1,0 +1,20 @@
+{
+  "name": "pipe-in",
+  "version": "0.0.0",
+  "description": "Pipe In HTML content",
+  "homepage": "https://github.com/bahrus/pipe-in#readme",
+  "bugs": {
+    "url": "https://github.com/bahrus/pipe-in/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bahrus/pipe-in.git"
+  },
+  "license": "MIT",
+  "author": "Bruce B. Anderson <anderson.bruce.b@gmail.com>",
+  "type": "module",
+  "main": "pipe-in.js",
+  "scripts": {
+    "test": "playwright test"
+  }
+}
