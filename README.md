@@ -71,3 +71,22 @@ Content-Security-Policy: connect-src 'self' https://trusted.example.com; script-
 ```
 
 This layers defense-in-depth on top of the import-map gate: even if an attacker could influence markup attributes, the browser-enforced CSP limits where content can be loaded from and whether scripts can execute.
+
+
+## Viewing Demos Locally
+
+1. Install git
+2. Fork/clone this repo
+3. Install node.js
+4. Open command window to folder where you cloned this repo
+5. > git submodule add https://github.com/bahrus/types.git types
+6. > git submodule update --init --recursive
+7. > npm install
+8. > npm run serve
+9. Open http://localhost:8000/demo/ in a modern browser
+
+## Running Tests
+
+```
+> npm run test
+```
