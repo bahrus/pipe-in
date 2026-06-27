@@ -72,6 +72,44 @@ Content-Security-Policy: connect-src 'self' https://trusted.example.com; script-
 
 This layers defense-in-depth on top of the import-map gate: even if an attacker could influence markup attributes, the browser-enforced CSP limits where content can be loaded from and whether scripts can execute.
 
+### CORS proxies for cross-origin content
+
+Many useful HTML sources (documentation sites, CMSs, third-party APIs) don't serve CORS headers. When you control the target server, the fix is to add `Access-Control-Allow-Origin` there. When you don't, a CORS proxy can relay the request and attach the required headers.
+
+**Recommended: Cloudflare Worker (self-hosted)**
+
+A [Cloudflare Worker](https://workers.cloudflare.com/) is the best option for most deployments. The free tier provides 100,000 requests/day, there's no server to manage, latency is low thanks to Cloudflare's edge network, and you maintain full control over allowed origins.
+
+[cloudflare-cors-anywhere](https://github.com/Zibri/cloudflare-cors-anywhere) is a minimal, ready-to-deploy Worker (~30 lines) you can deploy with `wrangler publish`. Usage:
+
+```
+https://your-worker.your-subdomain.workers.dev/?https://example.com/content.html
+```
+
+You can lock it down by adding an origin allowlist so only your site can call the proxy.
+
+**Alternatives:**
+
+- [cors-anywhere](https://github.com/Rob--W/cors-anywhere) — The original Node.js CORS proxy. Self-host on any Node environment (Heroku, Fly.io, a VPS). More infrastructure to manage, but full flexibility. The public demo at `cors-anywhere.herokuapp.com` is rate-limited and not suitable for production.
+- [corsproxy.io](https://corsproxy.io/) — Free hosted service, no setup required. Convenient for prototyping, but you're trusting a third party with your traffic and uptime.
+
+**Usage with pipe-in:**
+
+```html
+<script type=importmap>
+{
+    "imports": {
+        "proxied/": "https://your-worker.workers.dev/?"
+    }
+}
+</script>
+<article pipe-in="proxied/https://example.com/article.html">
+    <p>Loading...</p>
+</article>
+```
+
+Note: Because the URL above uses a bare specifier mapped through an import map, the security constraints on sanitizer/script overrides are also satisfied.
+
 
 ## Viewing Demos Locally
 
