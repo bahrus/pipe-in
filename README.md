@@ -28,5 +28,5 @@ The following table indicates the default values and how to override.
 
 |Name|Default|Override|
 |----|-------|--------|
-|Method|StreamHTML|[base]-method=StreamHTML \| streamReplaceWithHTML \| streamBeforeHTML \| streamPrependHTML \| streamAppendHTML \| streamAfterHTML \| streamHTMLUnsafe \| streamReplaceWithHTMLUnsafe \| streamBeforeHTMLUnsafe \| streamPrependHTMLUnsafe \| streamAppendHTMLUnsafe streamAfterHTMLUnsafe |
-|Sanitizer|[Default](https://developer.mozilla.org/en-US/docs/Web/API/HTML_Sanitizer_API/Default_sanitizer_configuration)|\[base\]-sanitizer|\[base\]-sanitizer='{"elements": \["em", "i", "b", "strong"\]}'|
+|Method|StreamHTML|`[base]-method=StreamHTML \| streamReplaceWithHTML \| streamBeforeHTML \| streamPrependHTML \| streamAppendHTML \| streamAfterHTML \| streamHTMLUnsafe \| streamReplaceWithHTMLUnsafe \| streamBeforeHTMLUnsafe \| streamPrependHTMLUnsafe \| streamAppendHTMLUnsafe streamAfterHTMLUnsafe` |
+|Sanitizer|[Default](https://developer.mozilla.org/en-US/docs/Web/API/HTML_Sanitizer_API/Default_sanitizer_configuration)|`[base]-sanitizer='{"elements": ["em", "i", "b", "strong"]}'`|
