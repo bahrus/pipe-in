@@ -49,3 +49,25 @@ Allowing attributes to specify such things as "run scripts", or specifying allow
     <span slot="AdInsert"><a href="https://www.target.com/b/pedialax/-/N-55lp4">Pedia-Lax</a></span>    
 </article>
 ```
+
+### Cross-origin constraints
+
+All fetches performed by pipe-in use the standard Fetch API and are therefore subject to CORS. A cross-origin URL will only succeed if the remote server responds with appropriate `Access-Control-Allow-Origin` headers. This means untrusted third-party endpoints cannot be silently injected — the remote must explicitly opt in to being consumed.
+
+For same-origin URLs no additional configuration is needed.
+
+### Content Security Policy
+
+pipe-in respects the page's Content-Security-Policy. In particular:
+
+- **`connect-src`** governs which origins pipe-in may fetch from. If a URL is not permitted by the active CSP, the fetch will be blocked by the browser before any content reaches the page.
+- **`script-src`** applies when `[base]-run-scripts` is used. Even if the import-map gate allows script execution, CSP can independently block inline or remote scripts that don't match the policy.
+- **`style-src`** applies to any inline styles present in the streamed content.
+
+A recommended baseline policy for pages using pipe-in:
+
+```
+Content-Security-Policy: connect-src 'self' https://trusted.example.com; script-src 'self'; style-src 'self' 'unsafe-inline'
+```
+
+This layers defense-in-depth on top of the import-map gate: even if an attacker could influence markup attributes, the browser-enforced CSP limits where content can be loaded from and whether scripts can execute.
