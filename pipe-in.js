@@ -149,14 +149,16 @@ class PipeIn {
                 await stream.pipeTo(writableSink);
             }
 
-            // Set complete state
+            // Set complete state and dispatch load event
             this.#setState(enhancedElement, stateAttr, 'complete');
+            enhancedElement.dispatchEvent(new Event('load'));
 
             return /** @type {PAP} */ ({resolved: true});
         } catch (e) {
             console.error(`[pipe-in] Error streaming content from "${url}":`, e);
-            // Set error state
+            // Set error state and dispatch error event
             this.#setState(enhancedElement, stateAttr, 'error');
+            enhancedElement.dispatchEvent(new Event('error'));
             return /** @type {PAP} */ ({resolved: false});
         }
     }

@@ -58,10 +58,15 @@ function renameStructuralTags(html) {
  * @returns {string}
  */
 function rewriteUrls(html, baseHref) {
-    // Rewrite href, src, action, poster attributes with relative URLs
+    // Rewrite href, src, action, poster attributes with quoted relative URLs
     html = html.replace(
         /((?:href|src|action|poster)\s*=\s*)(["'])(?!https?:\/\/|\/\/|data:|#|mailto:)([^"']*?)\2/gi,
         (_, prefix, quote, path) => `${prefix}${quote}${new URL(path, baseHref).href}${quote}`
+    );
+    // Rewrite href, src, action, poster attributes with unquoted relative URLs
+    html = html.replace(
+        /((?:href|src|action|poster)\s*=\s*)(?!["'])(?!https?:\/\/|\/\/|data:|#|mailto:)([^\s>]+)/gi,
+        (_, prefix, path) => `${prefix}"${new URL(path, baseHref).href}"`
     );
     // Rewrite url() in inline styles
     html = html.replace(

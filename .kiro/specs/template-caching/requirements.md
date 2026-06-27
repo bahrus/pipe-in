@@ -112,9 +112,9 @@ This feature adds two caching capabilities to the pipe-in web component:
 3. WHEN `${base}-memoize` is active with a cross-origin URL that passes the security gate (no unsafe method, no script execution, no sanitizer override), THE Pipe_In SHALL insert the cloned template content without executing scripts and without applying a custom sanitizer override.
 4. THE Pipe_In SHALL evaluate the security gate at clone-insertion time for each memoized instance independently, so that a template cached by a trusted origin does not grant elevated privileges to an instance referencing a cross-origin URL.
 
-### Requirement 9: Piping State Indication
+### Requirement 9: Piping State Indication and Events
 
-**User Story:** As a developer, I want the enhanced element to expose its piping state via standard attributes, so that I can style loading, streaming, and completion states with CSS and provide accessible feedback.
+**User Story:** As a developer, I want the enhanced element to expose its piping state via standard attributes and events, so that I can style loading, streaming, and completion states with CSS, provide accessible feedback, and react programmatically to completion.
 
 #### Acceptance Criteria
 
@@ -126,3 +126,5 @@ This feature adds two caching capabilities to the pipe-in web component:
 6. WHEN piping completes successfully, THE Pipe_In SHALL update the `${base}-state` attribute to `complete`.
 7. IF the fetch or streaming fails, THEN THE Pipe_In SHALL update the `${base}-state` attribute to `error`.
 8. WHILE no fetch has been initiated for the Enhanced_Element, THE Pipe_In SHALL NOT set the `aria-busy` attribute or the `${base}-state` attribute on the Enhanced_Element.
+9. WHEN piping completes successfully and content is in the DOM, THE Pipe_In SHALL dispatch a non-bubbling `load` event on the Enhanced_Element using `new Event('load')`.
+10. IF the fetch or streaming fails, THEN THE Pipe_In SHALL dispatch a non-bubbling `error` event on the Enhanced_Element using `new Event('error')`.
