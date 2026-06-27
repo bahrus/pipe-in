@@ -99,3 +99,49 @@ This feature adds two caching capabilities to the pipe-in web component:
 
 1. WHEN `${base}-memoize` is active, THE Pipe_In SHALL enforce the same security gate for unsafe methods, script execution, and sanitizer overrides (requiring a bare specifier or same-origin URL).
 2. WHEN `${base}-memoize` is active with a cross-origin URL, THE Pipe_In SHALL restrict insertion to the equivalent of the default sanitized behavior.
+
+---
+
+## Discussion: Integration with Custom Element Definition (templ-maker / el-maker)
+
+### User Question
+
+> How could you see this integrating with a custom element feature like [templ-maker](https://github.com/bahrus/templ-maker)? Do you think we would need to define a different custom element feature when integrating with pipe-in? I'm also concerned that someone would define a custom element with the help of pipe-in, and then just kind of blindly copy the pipe-in attribute:
+>
+> ```html
+> <hello-world pipe-in=my-package/hello-world.html>
+>     <script type="cede" data-extends="el-maker"></script>
+> </hello-world>
+> 
+> ...
+> 
+> <hello-world pipe-in=my-package/hello-world.html></hello-world>
+> ```
+
+### Response
+
+This is a great concern. The scenario you describe — a "definition" instance and subsequent "usage" instances both carrying `pipe-in` — is exactly the kind of redundant-fetch problem that template memoization solves at the mechanical level. But it also raises a **semantic** question: should the second `<hello-world>` even need `pipe-in` at all, or should it simply rely on the custom element already being defined?
+
+**How I see the integration working:**
+
+1. **First instance (definition):** The first `<hello-world pipe-in=my-package/hello-world.html>` fetches the HTML, the `<script type="cede" data-extends="el-maker">` inside triggers custom element registration, and the element's shadow DOM is populated from the fetched content. This is essentially a one-time bootstrap.
+
+2. **Subsequent instances (usage):** Once `hello-world` is defined in the custom element registry, further `<hello-world>` instances should not need `pipe-in` at all — they should get their template from the custom element's own lifecycle (constructor/connectedCallback cloning an internal template).
+
+**The memoization feature bridges the gap for the transitional case** — when multiple elements appear in the DOM simultaneously before the custom element class has been registered. With `${base}-memoize`, the second instance would at least avoid a duplicate fetch. But the deeper answer is:
+
+**You likely do NOT need a different custom element feature for integration.** Instead, I'd suggest the following pattern:
+
+- The `templ-maker` / `el-maker` registration logic should, as part of defining the custom element, store the template content in a way that subsequent instances can access (e.g., a static property on the class, or the existing Template_Cache).
+- Once the element is defined, the `pipe-in` attribute becomes inert for subsequent instances — the custom element's own lifecycle handles content population.
+- The `${base}-memoize` attribute serves as the safety net: if a developer does "blindly copy" the attribute, it ensures no extra network requests are made. The cached template is cloned instantly.
+
+**A possible additional requirement** could address this explicitly: when `${base}-memoize` is active and the target element is already a defined custom element with its own template, pipe-in could skip its work entirely. But that might belong to the templ-maker feature rather than pipe-in itself.
+
+**Should we add a requirement for this?** For example:
+
+> WHEN `${base}-memoize` is active and the Enhanced_Element's tag name is a registered custom element, THE Pipe_In SHALL still clone the cached template (since the custom element definition may depend on pipe-in to provide its initial content).
+
+Or alternatively, should pipe-in expose a hook/event (like `template-cached`) that templ-maker can listen to for triggering `customElements.define()`?
+
+Let me know how you'd like to handle this integration boundary — whether it belongs in this spec or in a separate templ-maker spec.
