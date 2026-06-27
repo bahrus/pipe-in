@@ -112,11 +112,14 @@ class PipeIn {
             if (response.body) {
                 let stream = response.body.pipeThrough(new TextDecoderStream());
                 if (injectBase) {
-                    // Construct a full absolute base URL for the URL constructor
-                    let baseHref = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
-                    if (baseHref.startsWith('/')) {
-                        baseHref = location.origin + baseHref;
-                    }
+                    // Derive a proper absolute base URL
+                    const absolute = resolvedUrl.startsWith('http') 
+                        ? resolvedUrl 
+                        : location.origin + resolvedUrl;
+                    const urlObj = new URL(absolute);
+                    // Use directory of the path, fall back to origin root
+                    const pathDir = urlObj.pathname.substring(0, urlObj.pathname.lastIndexOf('/') + 1);
+                    const baseHref = urlObj.origin + pathDir;
                     const {rewriteUrlsTransform} = await import('pipe-in/rewrite-urls.js');
                     stream = stream.pipeThrough(rewriteUrlsTransform(baseHref));
                 }
