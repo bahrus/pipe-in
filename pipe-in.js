@@ -173,11 +173,36 @@ class PipeIn {
 
                 await stream.pipeTo(writableSink);
 
-                // Hand off the accumulated HTML as a template to the precede script
+                // Hand off a lazy template getter to the precede script
                 if (precedeScript) {
-                    const template = document.createElement('template');
-                    template.innerHTML = accumulatedChunks.join('');
-                    /** @type {any} */ (precedeScript)[Symbol.for('pipe-in:template')] = template;
+                    const html = accumulatedChunks.join('');
+                    const storageKey = `pipe-in:${resolvedUrl}|${start || ''}|${end || ''}|${injectBase ? 'base' : ''}`;
+
+                    // Store the raw HTML in sessionStorage for lazy retrieval
+                    /** @type {string | null} */
+                    let fallbackHtml = null;
+                    try {
+                        sessionStorage.setItem(storageKey, html);
+                    } catch (e) {
+                        // sessionStorage full or unavailable — keep in-memory fallback
+                        console.warn('[pipe-in] sessionStorage unavailable, using in-memory template.');
+                        fallbackHtml = html;
+                    }
+
+                    // Define a lazy getter that defers parsing until first access
+                    /** @type {HTMLTemplateElement | null} */
+                    let cachedTemplate = null;
+                    Object.defineProperty(precedeScript, Symbol.for('pipe-in:template'), {
+                        get() {
+                            if (cachedTemplate) return cachedTemplate;
+                            const stored = fallbackHtml ?? sessionStorage.getItem(storageKey) ?? '';
+                            cachedTemplate = document.createElement('template');
+                            cachedTemplate.innerHTML = stored;
+                            return cachedTemplate;
+                        },
+                        configurable: true
+                    });
+
                     precedeScript.setAttribute('type', 'cede');
                 }
             }
