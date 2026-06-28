@@ -23,7 +23,8 @@
                 "instanceOf": "Boolean"
             },
             "start": "${base}-start",
-            "end": "${base}-end"
+            "end": "${base}-end",
+            "cache": "${base}-cache"
         }
     },
     "customData": {

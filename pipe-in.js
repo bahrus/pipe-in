@@ -49,12 +49,16 @@ class PipeIn {
      * @returns {import('./types/pipe-in/types').ProPAP}
      */
     async hydrate(self){
-        const { enhancedElement, url, method, sanitizer, runScripts, shadowrootmode, injectBase, start, end } = self;
+        const { enhancedElement, url, method, sanitizer, runScripts, shadowrootmode, injectBase, start, end, cache } = self;
 
         const stateAttr = this.#getStateAttr(enhancedElement);
 
         // Resolve the URL - check if it's a bare specifier via import map
         const resolvedUrl = this.#resolveUrl(url);
+        const isBareSpecifier = resolvedUrl !== url;
+
+        // Validate and resolve the fetch cache policy
+        const cachePolicy = this.#resolveCachePolicy(cache);
         const isBareSpecifier = resolvedUrl !== url;
 
         // Security gate: runScripts, sanitizer overrides, and unsafe methods
@@ -95,7 +99,7 @@ class PipeIn {
                 }
             }
 
-            const response = await fetch(resolvedUrl);
+            const response = await fetch(resolvedUrl, { cache: cachePolicy });
             if (!response.ok) {
                 throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
             }
@@ -238,6 +242,19 @@ class PipeIn {
         } else {
             el.removeAttribute('aria-busy');
         }
+    }
+
+    /**
+     * Validates and resolves the fetch cache policy.
+     * @param {string} [value]
+     * @returns {RequestCache}
+     */
+    #resolveCachePolicy(value) {
+        if (!value) return 'default';
+        const valid = ['default', 'no-store', 'reload', 'no-cache', 'force-cache', 'only-if-cached'];
+        if (valid.includes(value)) return /** @type {RequestCache} */ (value);
+        console.warn(`[pipe-in] Invalid cache policy "${value}". Using "default".`);
+        return 'default';
     }
 }
 

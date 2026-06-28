@@ -35,6 +35,7 @@ The following table indicates the default values and how to override.
 |Script support|No support|`[base]-run-scripts`|
 |Shadow root mode|None|`[base]-shadowrootmode=open \| closed`|
 |URL rewriting|Off|`[base]-base`|
+|Cache policy|default|`[base]-cache=default \| no-store \| reload \| no-cache \| force-cache \| only-if-cached`|
 
 Note: The default sanitizer (used by `streamHTML` and other non-`Unsafe` methods) strips elements like `<link>`, `<img>`, `<script>`, and `<style>`. If you need these elements preserved, use one of the `*Unsafe` methods or pass a custom sanitizer configuration.
 

@@ -24,6 +24,7 @@ export const emc = {
             _injectBase: { instanceOf: 'Boolean' },
             start: '${base}-start',
             end: '${base}-end',
+            cache: '${base}-cache',
         }
     },
     customData: {
