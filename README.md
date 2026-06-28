@@ -57,7 +57,9 @@ Cross-origin absolute URLs (starting with `http://` or `https://`) are restricte
     }
 }
 </script>
-<article ⇥=springer/article/10.1007/s00300-003-0563-3 pipe-in-shadowrootmode=open>
+<article 
+    ⇥=springer/article/10.1007/s00300-003-0563-3 
+    ⇥-shadowrootmode=open>
     <span slot="AdInsert"><a href="https://www.target.com/b/pedialax/-/N-55lp4">Pedia-Lax</a></span>    
 </article>
 ```
