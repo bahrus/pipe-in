@@ -296,6 +296,55 @@ article.addEventListener('error', () => {
 });
 ```
 
+## Presets
+
+### be-importing ( 📥 )
+
+A shortcut preset for the common "custom element definition via HTML import" pattern. It bundles the typical settings needed when importing a custom element's template from an HTML file.
+
+The `be-importing` attribute (or `📥` shorthand) implies:
+
+| Setting | Value |
+|---------|-------|
+| shadowrootmode | open |
+| injectBase | true |
+| method | streamHTMLUnsafe |
+| start | `<?start` |
+| end | `<?end>` |
+| runScripts | true |
+| cache | default |
+
+These settings are baked in and cannot be overridden via attributes when using this preset.
+
+```html
+<xtal-side-nav be-importing=xtal-side-nav/xtal-side-nav.html>
+    <script type="precede" data-extends="el-maker"></script>
+    <section style='color:white'>
+        <div>Menu Item 1</div>
+        <div>Menu Item 2</div>
+    </section>
+</xtal-side-nav>
+```
+
+The HTML file (`xtal-side-nav.html`) delineates its template body with processing instruction markers:
+
+```html
+<!-- head content, styles, etc. -->
+<?start>
+<div class="sidebar">
+    <slot></slot>
+</div>
+<?end>
+```
+
+To register this preset with be-hive:
+
+```html
+<be-hive>
+    <script type=emc src="pipe-in/be-importing.json"></script>
+</be-hive>
+```
+
 ## Viewing Demos Locally
 
 1. Install git

@@ -1,0 +1,37 @@
+{
+    "enhConfig": {
+        "enhKey": "📥",
+        "spawn": "pipe-in/pipe-in.js",
+        "withAttrs": {
+            "base": "📥",
+            "_base": {
+                "mapsTo": "url",
+                "instanceOf": "String"
+            }
+        }
+    },
+    "customData": {
+        "weakRef": {
+            "properties": [
+                "enhancedElement"
+            ]
+        },
+        "actions": {
+            "hydrate": {
+                "ifAllOf": [
+                    "url",
+                    "enhancedElement"
+                ]
+            }
+        },
+        "defaultPropVals": {
+            "method": "streamHTMLUnsafe",
+            "shadowrootmode": "open",
+            "injectBase": true,
+            "runScripts": true,
+            "start": "<?start",
+            "end": "<?end>",
+            "cache": "default"
+        }
+    }
+}

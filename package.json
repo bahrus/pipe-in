@@ -15,7 +15,7 @@
   "type": "module",
   "main": "pipe-in.js",
   "scripts": {
-    "build": "node emc.mjs > emc.json && node ⇥.mjs > ⇥.json",
+    "build": "node emc.mjs > emc.json && node ⇥.mjs > ⇥.json && node be-importing.mjs > be-importing.json && node 📥.mjs > 📥.json",
     "serve": "node ./node_modules/spa-ssi/serve.js",
     "test": "playwright test",
     "safari": "npx playwright wk http://localhost:8000",
