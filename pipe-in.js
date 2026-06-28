@@ -74,6 +74,12 @@ class PipeIn {
         // Set loading state
         this.#setState(enhancedElement, stateAttr, 'loading');
 
+        // Eagerly detect precede script for template handoff
+        // (only on custom elements — tags with a dash)
+        const precedeScript = enhancedElement.localName.includes('-')
+            ? enhancedElement.querySelector('script[type="precede"]')
+            : null;
+
         try {
             // Determine the streaming target
             let target = /** @type {any} */ (enhancedElement);
@@ -146,7 +152,30 @@ class PipeIn {
                     const {rewriteUrlsTransform} = await import('pipe-in/rewrite-urls.js');
                     stream = stream.pipeThrough(rewriteUrlsTransform(baseHref));
                 }
+
+                // If a precede script was found, accumulate the final transformed
+                // chunks into a string for template creation
+                /** @type {string[]} */
+                const accumulatedChunks = [];
+                if (precedeScript) {
+                    const accumulatorTransform = new TransformStream({
+                        transform(chunk, controller) {
+                            accumulatedChunks.push(chunk);
+                            controller.enqueue(chunk);
+                        }
+                    });
+                    stream = stream.pipeThrough(accumulatorTransform);
+                }
+
                 await stream.pipeTo(writableSink);
+
+                // Hand off the accumulated HTML as a template to the precede script
+                if (precedeScript) {
+                    const template = document.createElement('template');
+                    template.innerHTML = accumulatedChunks.join('');
+                    /** @type {any} */ (precedeScript)[Symbol.for('pipe-in:template')] = template;
+                    precedeScript.setAttribute('type', 'cede');
+                }
             }
 
             // Set complete state and dispatch load event
