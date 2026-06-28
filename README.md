@@ -121,22 +121,14 @@ You can lock it down by adding an origin allowlist so only your site can call th
 
 Note: Because the URL above uses a bare specifier mapped through an import map, the security constraints on sanitizer/script overrides are also satisfied.
 
-## Basing the shadow root
+## URL rewriting
 
-If `[base]-shadowrootmode` and `[base]-base` are both present, pipe-in will:
+When `[base]-base` is present, pipe-in rewrites relative URLs (`href`, `src`, `action`, `poster`, and `url()` in inline styles) in the streamed HTML to absolute URLs, using the directory of the fetch URL as the base. The URL rewriting module (`rewrite-urls.js`) is only loaded when `[base]-base` is present.
 
-1. Attach a shadow root with the specified mode
-2. Insert a `<div part="content">` as the streaming target
-3. Rewrite relative URLs (`href`, `src`, `action`, `poster`, and `url()` in inline styles) in the streamed HTML to absolute URLs, using the directory of the fetch URL as the base
-4. Stream the rewritten content into the div
-
-This gives the consumer a `::part(content)` CSS hook for styling from outside the shadow DOM. The URL rewriting module (`rewrite-urls.js`) is only loaded when `[base]-base` is present.
-
-Note: `<base>` elements don't work inside shadow roots per the HTML spec, so pipe-in uses a streaming `TransformStream` to rewrite URLs on the fly as content is piped in.
+Note: `<base>` elements don't work inside shadow roots per the HTML spec, so pipe-in uses a streaming `TransformStream` to rewrite URLs on the fly as content is piped in. This same approach works for light DOM streaming as well.
 
 ```html
 <article pipe-in=/demo/partials/sample.html
-         pipe-in-shadowrootmode=open
          pipe-in-base
          pipe-in-method=streamHTMLUnsafe>
     <p>Loading...</p>
@@ -146,6 +138,26 @@ Note: `<base>` elements don't work inside shadow roots per the HTML spec, so pip
 Relative links in `sample.html` like `href="styles.css"` and `src="icon.svg"` will be resolved to `/demo/partials/styles.css` and `/demo/partials/icon.svg` respectively.
 
 Typically you'll want `streamHTMLUnsafe` when using `[base]-base`, since the default sanitizer strips elements like `<link>` and `<img>` that are often present in content with relative URLs.
+
+### Combined with shadow DOM
+
+If `[base]-shadowrootmode` and `[base]-base` are both present, pipe-in will:
+
+1. Attach a shadow root with the specified mode
+2. Insert a `<div part="content">` as the streaming target
+3. Rewrite relative URLs in the streamed HTML to absolute URLs
+4. Stream the rewritten content into the div
+
+This gives the consumer a `::part(content)` CSS hook for styling from outside the shadow DOM.
+
+```html
+<article pipe-in=/demo/partials/sample.html
+         pipe-in-shadowrootmode=open
+         pipe-in-base
+         pipe-in-method=streamHTMLUnsafe>
+    <p>Loading...</p>
+</article>
+```
 
 ## Piping state
 
