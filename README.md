@@ -52,7 +52,7 @@ Cross-origin absolute URLs (starting with `http://` or `https://`) are restricte
 <script type=importmap>
 {
     "imports": {
-        "spring/": "https://link.springer.com/"
+        "springer/": "https://link.springer.com/"
     }
 }
 </script>
