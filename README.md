@@ -216,7 +216,7 @@ When pipe-in is used on a custom element (any tag with a dash in its name) that 
 1. Before fetching, pipe-in checks if the enhanced element has a `<script type="precede">` in its light DOM
 2. If found, pipe-in accumulates the final transformed HTML (after snipping, URL rewriting, etc.) into a string while streaming
 3. After streaming completes, pipe-in creates a `<template>` element, sets its `innerHTML` to the accumulated string, and attaches it to the script element via `Symbol.for('pipe-in:template')`
-4. pipe-in then flips the script's `type` from `precede` to `cede`, which signals downstream features (like templ-maker) to proceed with custom element registration
+4. pipe-in then flips the script's `type` from `precede` to `cede`, which triggers [mount-observer](https://github.com/bahrus/mount-observer#custom-element-definition-cede-scripts) to proceed with custom element registration.
 
 ### Usage
 
