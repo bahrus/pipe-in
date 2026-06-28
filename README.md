@@ -1,5 +1,7 @@
 # pipe-in ( ⇥ )
 
+[![Demo Video](https://img.youtube.com/vi/qq7Bfwm1m_Q/0.jpg)](https://www.youtube.com/watch?v=qq7Bfwm1m_Q)
+
 Attribute-based wrapper around the browser's [partial update support](https://developer.chrome.com/blog/declarative-partial-updates).
 
 Canonical attribute
