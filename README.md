@@ -253,10 +253,10 @@ When pipe-in is used on a custom element (any tag with a dash in its name) that 
 ### Usage
 
 ```html
-<hello-world pipe-in=my-package/hello-world.html
-             pipe-in-shadowrootmode=open
-             pipe-in-base
-             pipe-in-method=streamHTMLUnsafe>
+<hello-world enh-pipe-in=my-package/hello-world.html
+             enh-pipe-in-shadowrootmode=open
+             enh-pipe-in-base
+             enh-pipe-in-method=streamHTMLUnsafe>
     <script type="precede" data-extends="el-maker"></script>
 </hello-world>
 ```
