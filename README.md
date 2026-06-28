@@ -5,7 +5,8 @@ Attribute-based wrapper around the browser's [partial update support](https://de
 Canonical attribute
 
 ```html
-<article pipe-in=https://link.springer.com/article/10.1007/s00300-003-0563-3 pipe-in-shadowrootmode=open>
+<article 
+    pipe-in=https://link.springer.com/article/10.1007/s00300-003-0563-3 pipe-in-shadowrootmode=open>
     <span slot="AdInsert"><a href="https://www.target.com/b/pedialax/-/N-55lp4">Pedia-Lax</a></span>    
 </article>
 ```
@@ -13,7 +14,8 @@ Canonical attribute
 For well controlled environments, for example within a carefully managed custom element registry, where namespace clashes are easy to avoid:  
 
 ```html
-<article ⇥=https://link.springer.com/article/10.1007/s00300-003-0563-3 pipe-in-shadowrootmode=open>
+<article 
+    ⇥=https://link.springer.com/article/10.1007/s00300-003-0563-3 ⇥-shadowrootmode=open>
     <span slot="AdInsert"><a href="https://www.target.com/b/pedialax/-/N-55lp4">Pedia-Lax</a></span>    
 </article>
 ```
