@@ -207,6 +207,63 @@ Snipping runs before URL rewriting, so markers match the original source HTML.
 </article>
 ```
 
+## Custom element template handoff
+
+When pipe-in is used on a custom element (any tag with a dash in its name) that contains a `<script type="precede">` child, pipe-in will automatically coordinate with custom element features like [templ-maker](https://github.com/bahrus/templ-maker) to provide a template for the element's definition.
+
+### How it works
+
+1. Before fetching, pipe-in checks if the enhanced element has a `<script type="precede">` in its light DOM
+2. If found, pipe-in accumulates the final transformed HTML (after snipping, URL rewriting, etc.) into a string while streaming
+3. After streaming completes, pipe-in creates a `<template>` element, sets its `innerHTML` to the accumulated string, and attaches it to the script element via `Symbol.for('pipe-in:template')`
+4. pipe-in then flips the script's `type` from `precede` to `cede`, which signals downstream features (like templ-maker) to proceed with custom element registration
+
+### Usage
+
+```html
+<hello-world pipe-in=my-package/hello-world.html
+             pipe-in-shadowrootmode=open
+             pipe-in-base
+             pipe-in-method=streamHTMLUnsafe>
+    <script type="precede" data-extends="el-maker"></script>
+</hello-world>
+```
+
+The first `<hello-world>` instance fetches and streams the HTML, then hands the template to templ-maker via the `precede` → `cede` flip. Once the custom element is defined, subsequent instances get their content from the element's own lifecycle — no `pipe-in` attribute needed:
+
+```html
+<hello-world></hello-world>
+```
+
+### The `precede` protocol
+
+The `type="precede"` convention is a generic coordination mechanism. Any feature that needs to wait for pipe-in to finish streaming before it activates can use this pattern:
+
+- The script sits inert (browsers ignore scripts with unknown types)
+- pipe-in attaches a template at `scriptEl[Symbol.for('pipe-in:template')]`
+- pipe-in flips `type` to `cede`, triggering whatever mount-observer or mutation-based logic is watching for that type
+
+This keeps coupling at the markup level — pipe-in doesn't import or reference templ-maker, and templ-maker doesn't import pipe-in.
+
+## Events
+
+pipe-in dispatches standard events on the enhanced element:
+
+| Event | When | Bubbles |
+|-------|------|---------|
+| `load` | Content has been successfully streamed into the DOM | No |
+| `error` | Fetch or streaming failed | No |
+
+```js
+const article = document.querySelector('article[pipe-in]');
+article.addEventListener('load', () => {
+    // Content is ready — safe to query the shadow DOM, etc.
+});
+article.addEventListener('error', () => {
+    // Handle failure
+});
+```
+
 ## Viewing Demos Locally
 
 1. Install git
