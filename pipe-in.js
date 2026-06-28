@@ -138,14 +138,7 @@ class PipeIn {
             let target = /** @type {any} */ (enhancedElement);
             if (shadowrootmode) {
                 const shadow = enhancedElement.attachShadow({ mode: shadowrootmode });
-                if (injectBase) {
-                    const contentDiv = document.createElement('div');
-                    contentDiv.setAttribute('part', 'content');
-                    shadow.appendChild(contentDiv);
-                    target = contentDiv;
-                } else {
-                    target = shadow;
-                }
+                target = shadow;
             }
 
             const response = await fetch(resolvedUrl, { cache: cachePolicy });
@@ -295,21 +288,14 @@ class PipeIn {
      * @returns {import('./types/pipe-in/types').ProPAP}
      */
     async #joinStream(entry, self, stateAttr) {
-        const { enhancedElement, method, sanitizer, runScripts, shadowrootmode, injectBase } = self;
+        const { enhancedElement, method, sanitizer, runScripts, shadowrootmode } = self;
 
         try {
             // Determine the streaming target
             let target = /** @type {any} */ (enhancedElement);
             if (shadowrootmode) {
                 const shadow = enhancedElement.attachShadow({ mode: shadowrootmode });
-                if (injectBase) {
-                    const contentDiv = document.createElement('div');
-                    contentDiv.setAttribute('part', 'content');
-                    shadow.appendChild(contentDiv);
-                    target = contentDiv;
-                } else {
-                    target = shadow;
-                }
+                target = shadow;
             }
 
             // Build options for the streaming method
@@ -358,21 +344,14 @@ class PipeIn {
      * @returns {import('./types/pipe-in/types').ProPAP}
      */
     async #hydrateFromString(html, self, stateAttr) {
-        const { enhancedElement, method, sanitizer, runScripts, shadowrootmode, injectBase } = self;
+        const { enhancedElement, method, sanitizer, runScripts, shadowrootmode } = self;
 
         try {
             // Determine the streaming target
             let target = /** @type {any} */ (enhancedElement);
             if (shadowrootmode) {
                 const shadow = enhancedElement.attachShadow({ mode: shadowrootmode });
-                if (injectBase) {
-                    const contentDiv = document.createElement('div');
-                    contentDiv.setAttribute('part', 'content');
-                    shadow.appendChild(contentDiv);
-                    target = contentDiv;
-                } else {
-                    target = shadow;
-                }
+                target = shadow;
             }
 
             // Build options for the streaming method
