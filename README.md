@@ -38,6 +38,7 @@ The following table indicates the default values and how to override.
 |Shadow root mode|None|`[base]-shadowrootmode=open \| closed`|
 |URL rewriting|Off|`[base]-base`|
 |Cache policy|default|`[base]-cache=default \| no-store \| reload \| no-cache \| force-cache \| only-if-cached`|
+|Stream sharing|Enabled|`[base]-no-share` (disables sharing)|
 
 Note: The default sanitizer (used by `streamHTML` and other non-`Unsafe` methods) strips elements like `<link>`, `<img>`, `<script>`, and `<style>`. If you need these elements preserved, use one of the `*Unsafe` methods or pass a custom sanitizer configuration.
 
@@ -225,6 +226,38 @@ Snipping runs before URL rewriting, so markers match the original source HTML.
     <p>Loading...</p>
 </article>
 ```
+
+## Shared streams
+
+By default, pipe-in deduplicates fetches for identical URLs (with matching snip/rewrite parameters). When multiple elements share the same computed storage key, only one performs the actual fetch — others join the in-progress stream or use the cached result.
+
+### How it works
+
+1. The first instance to call `hydrate` registers itself as the source stream in a module-level inflight map
+2. While streaming, it broadcasts each chunk to any late-joining subscribers
+3. A second instance arriving mid-stream catches up by replaying all accumulated chunks, then receives live chunks going forward
+4. After the source stream completes, the accumulated HTML is persisted to `sessionStorage`
+5. Any instance arriving after completion reads directly from `sessionStorage` — no network request needed
+
+### Opting out
+
+Add `[base]-no-share` to disable sharing entirely for a given element. It won't register as a source, won't join existing streams, and won't read from `sessionStorage`. Each `no-share` instance always performs its own independent fetch.
+
+```html
+<article pipe-in=/content.html pipe-in-no-share>
+    <p>Loading...</p>
+</article>
+```
+
+### Storage key
+
+The deduplication key incorporates the resolved URL plus the transform parameters that affect output:
+
+```
+pipe-in:{resolvedUrl}|{start}|{end}|{base}
+```
+
+Two elements with the same URL but different snip markers or one with URL rewriting and one without will not share streams — their outputs would differ.
 
 ## Custom element template handoff
 

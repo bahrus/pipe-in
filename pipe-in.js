@@ -6,6 +6,22 @@
 /** @import {RAConfig} from './types/roundabout/types' */;
 
 /**
+ * @typedef {{
+ *   chunks: string[],
+ *   done: boolean,
+ *   listeners: Set<ReadableStreamDefaultController<string>>,
+ *   storageKey: string
+ * }} InflightEntry
+ */
+
+/**
+ * Module-level map of in-flight shared streams keyed by storage key.
+ * Entries exist only while a stream is actively being fetched/broadcast.
+ * @type {Map<string, InflightEntry>}
+ */
+const inflight = new Map();
+
+/**
  * @implements {Actions}
  */
 class PipeIn {
@@ -49,7 +65,7 @@ class PipeIn {
      * @returns {import('./types/pipe-in/types').ProPAP}
      */
     async hydrate(self){
-        const { enhancedElement, url, method, sanitizer, runScripts, shadowrootmode, injectBase, start, end, cache } = self;
+        const { enhancedElement, url, method, sanitizer, runScripts, shadowrootmode, injectBase, start, end, cache, noShare } = self;
 
         const stateAttr = this.#getStateAttr(enhancedElement);
 
@@ -59,7 +75,6 @@ class PipeIn {
 
         // Validate and resolve the fetch cache policy
         const cachePolicy = this.#resolveCachePolicy(cache);
-        const isBareSpecifier = resolvedUrl !== url;
 
         // Security gate: runScripts, sanitizer overrides, and unsafe methods
         // require the URL to be either a bare specifier (mapped through import map)
@@ -78,11 +93,45 @@ class PipeIn {
         // Set loading state
         this.#setState(enhancedElement, stateAttr, 'loading');
 
+        // Compute the storage key for sharing and sessionStorage
+        const storageKey = `pipe-in:${resolvedUrl}|${start || ''}|${end || ''}|${injectBase ? 'base' : ''}`;
+
+        // Check if we can join an existing shared stream or use sessionStorage
+        if (!noShare) {
+            const existingEntry = inflight.get(storageKey);
+            if (existingEntry) {
+                // Another instance is actively streaming — catch up
+                return this.#joinStream(existingEntry, self, stateAttr);
+            }
+            // Check if a completed result exists in sessionStorage
+            try {
+                const stored = sessionStorage.getItem(storageKey);
+                if (stored) {
+                    return this.#hydrateFromString(stored, self, stateAttr);
+                }
+            } catch (e) {
+                // sessionStorage unavailable — proceed with fetch
+            }
+        }
+
         // Eagerly detect precede script for template handoff
         // (only on custom elements — tags with a dash)
         const precedeScript = enhancedElement.localName.includes('-')
             ? enhancedElement.querySelector('script[type="precede"]')
             : null;
+
+        // Register in the inflight map if sharing is active
+        /** @type {InflightEntry | null} */
+        let entry = null;
+        if (!noShare) {
+            entry = {
+                chunks: [],
+                done: false,
+                listeners: new Set(),
+                storageKey
+            };
+            inflight.set(storageKey, entry);
+        }
 
         try {
             // Determine the streaming target
@@ -122,6 +171,10 @@ class PipeIn {
 
             const writableSink = target[streamMethod](options);
 
+            // Accumulated chunks for the precede-only path (when noShare is set)
+            /** @type {string[]} */
+            const accumulatedChunks = [];
+
             // Pipe the response body through a text decoder into the writable sink,
             // optionally snipping between start/end markers and rewriting relative URLs
             if (response.body) {
@@ -157,54 +210,56 @@ class PipeIn {
                     stream = stream.pipeThrough(rewriteUrlsTransform(baseHref));
                 }
 
-                // If a precede script was found, accumulate the final transformed
-                // chunks into a string for template creation
-                /** @type {string[]} */
-                const accumulatedChunks = [];
-                if (precedeScript) {
-                    const accumulatorTransform = new TransformStream({
+                // Broadcaster transform: accumulates chunks and broadcasts to listeners
+                // Active when sharing is enabled OR a precede script needs the string
+                if (entry || precedeScript) {
+                    const e = entry;
+                    const broadcasterTransform = new TransformStream({
                         transform(chunk, controller) {
                             accumulatedChunks.push(chunk);
+                            if (e) {
+                                e.chunks.push(chunk);
+                                for (const listener of e.listeners) {
+                                    listener.enqueue(chunk);
+                                }
+                            }
                             controller.enqueue(chunk);
+                        },
+                        flush() {
+                            if (e) {
+                                e.done = true;
+                                for (const listener of e.listeners) {
+                                    listener.close();
+                                }
+                            }
                         }
                     });
-                    stream = stream.pipeThrough(accumulatorTransform);
+                    stream = stream.pipeThrough(broadcasterTransform);
                 }
 
                 await stream.pipeTo(writableSink);
+            }
 
-                // Hand off a lazy template getter to the precede script
-                if (precedeScript) {
-                    const html = accumulatedChunks.join('');
-                    const storageKey = `pipe-in:${resolvedUrl}|${start || ''}|${end || ''}|${injectBase ? 'base' : ''}`;
+            // Finalize sharing: persist to sessionStorage and clean up inflight entry
+            if (entry) {
+                const html = entry.chunks.join('');
+                inflight.delete(storageKey);
 
-                    // Store the raw HTML in sessionStorage for lazy retrieval
-                    /** @type {string | null} */
-                    let fallbackHtml = null;
-                    try {
-                        sessionStorage.setItem(storageKey, html);
-                    } catch (e) {
-                        // sessionStorage full or unavailable — keep in-memory fallback
-                        console.warn('[pipe-in] sessionStorage unavailable, using in-memory template.');
-                        fallbackHtml = html;
-                    }
-
-                    // Define a lazy getter that defers parsing until first access
-                    /** @type {HTMLTemplateElement | null} */
-                    let cachedTemplate = null;
-                    Object.defineProperty(precedeScript, Symbol.for('pipe-in:template'), {
-                        get() {
-                            if (cachedTemplate) return cachedTemplate;
-                            const stored = fallbackHtml ?? sessionStorage.getItem(storageKey) ?? '';
-                            cachedTemplate = document.createElement('template');
-                            cachedTemplate.innerHTML = stored;
-                            return cachedTemplate;
-                        },
-                        configurable: true
-                    });
-
-                    precedeScript.setAttribute('type', 'cede');
+                try {
+                    sessionStorage.setItem(storageKey, html);
+                } catch (e) {
+                    // sessionStorage unavailable — content was already streamed
+                    console.warn('[pipe-in] sessionStorage unavailable for shared stream persistence.');
                 }
+
+                // Hand off lazy template getter to precede script
+                if (precedeScript) {
+                    this.#attachLazyTemplate(precedeScript, storageKey, html);
+                }
+            } else if (precedeScript) {
+                // No sharing (noShare set) but precede script needs the template
+                const html = accumulatedChunks.join('');
+                this.#attachLazyTemplate(precedeScript, storageKey, html);
             }
 
             // Set complete state and dispatch load event
@@ -214,11 +269,187 @@ class PipeIn {
             return /** @type {PAP} */ ({resolved: true});
         } catch (e) {
             console.error(`[pipe-in] Error streaming content from "${url}":`, e);
+
+            // Clean up inflight entry on error
+            if (entry) {
+                entry.done = true;
+                for (const listener of entry.listeners) {
+                    listener.close();
+                }
+                inflight.delete(storageKey);
+            }
+
             // Set error state and dispatch error event
             this.#setState(enhancedElement, stateAttr, 'error');
             enhancedElement.dispatchEvent(new Event('error'));
             return /** @type {PAP} */ ({resolved: false});
         }
+    }
+
+    /**
+     * Joins an in-flight shared stream by catching up with accumulated chunks
+     * and subscribing to future chunks.
+     * @param {InflightEntry} entry
+     * @param {AP} self
+     * @param {string} stateAttr
+     * @returns {import('./types/pipe-in/types').ProPAP}
+     */
+    async #joinStream(entry, self, stateAttr) {
+        const { enhancedElement, method, sanitizer, runScripts, shadowrootmode, injectBase } = self;
+
+        try {
+            // Determine the streaming target
+            let target = /** @type {any} */ (enhancedElement);
+            if (shadowrootmode) {
+                const shadow = enhancedElement.attachShadow({ mode: shadowrootmode });
+                if (injectBase) {
+                    const contentDiv = document.createElement('div');
+                    contentDiv.setAttribute('part', 'content');
+                    shadow.appendChild(contentDiv);
+                    target = contentDiv;
+                } else {
+                    target = shadow;
+                }
+            }
+
+            // Build options for the streaming method
+            /** @type {any} */
+            const options = {};
+            if (sanitizer !== undefined) {
+                options.sanitizer = new Sanitizer(/** @type {any} */ (sanitizer));
+            }
+            if (runScripts) {
+                options.runScripts = true;
+            }
+
+            // Get the streaming writable sink from the target element
+            const streamMethod = /** @type {string} */ (method);
+            if (typeof target[streamMethod] !== 'function') {
+                throw new Error(`Method "${streamMethod}" is not supported on the target element.`);
+            }
+
+            const writableSink = target[streamMethod](options);
+
+            // Dynamically load catch-up stream factory
+            const { createCatchUpStream } = await import('pipe-in/catch-up.js');
+            const stream = createCatchUpStream(entry);
+
+            this.#setState(enhancedElement, stateAttr, 'streaming');
+
+            await stream.pipeTo(writableSink);
+
+            this.#setState(enhancedElement, stateAttr, 'complete');
+            enhancedElement.dispatchEvent(new Event('load'));
+
+            return /** @type {PAP} */ ({resolved: true});
+        } catch (e) {
+            console.error(`[pipe-in] Error joining shared stream:`, e);
+            this.#setState(enhancedElement, stateAttr, 'error');
+            enhancedElement.dispatchEvent(new Event('error'));
+            return /** @type {PAP} */ ({resolved: false});
+        }
+    }
+
+    /**
+     * Hydrates an element from a pre-existing HTML string (from sessionStorage).
+     * @param {string} html
+     * @param {AP} self
+     * @param {string} stateAttr
+     * @returns {import('./types/pipe-in/types').ProPAP}
+     */
+    async #hydrateFromString(html, self, stateAttr) {
+        const { enhancedElement, method, sanitizer, runScripts, shadowrootmode, injectBase } = self;
+
+        try {
+            // Determine the streaming target
+            let target = /** @type {any} */ (enhancedElement);
+            if (shadowrootmode) {
+                const shadow = enhancedElement.attachShadow({ mode: shadowrootmode });
+                if (injectBase) {
+                    const contentDiv = document.createElement('div');
+                    contentDiv.setAttribute('part', 'content');
+                    shadow.appendChild(contentDiv);
+                    target = contentDiv;
+                } else {
+                    target = shadow;
+                }
+            }
+
+            // Build options for the streaming method
+            /** @type {any} */
+            const options = {};
+            if (sanitizer !== undefined) {
+                options.sanitizer = new Sanitizer(/** @type {any} */ (sanitizer));
+            }
+            if (runScripts) {
+                options.runScripts = true;
+            }
+
+            // Get the streaming writable sink from the target element
+            const streamMethod = /** @type {string} */ (method);
+            if (typeof target[streamMethod] !== 'function') {
+                throw new Error(`Method "${streamMethod}" is not supported on the target element.`);
+            }
+
+            const writableSink = target[streamMethod](options);
+
+            // Create a simple ReadableStream from the string and pipe it
+            const readableStream = new ReadableStream({
+                start(controller) {
+                    controller.enqueue(html);
+                    controller.close();
+                }
+            });
+
+            this.#setState(enhancedElement, stateAttr, 'streaming');
+            await readableStream.pipeTo(writableSink);
+
+            this.#setState(enhancedElement, stateAttr, 'complete');
+            enhancedElement.dispatchEvent(new Event('load'));
+
+            return /** @type {PAP} */ ({resolved: true});
+        } catch (e) {
+            console.error(`[pipe-in] Error hydrating from cached string:`, e);
+            this.#setState(enhancedElement, stateAttr, 'error');
+            enhancedElement.dispatchEvent(new Event('error'));
+            return /** @type {PAP} */ ({resolved: false});
+        }
+    }
+
+    /**
+     * Attaches a lazy template getter to a precede script element
+     * and flips its type to 'cede'.
+     * @param {Element} precedeScript
+     * @param {string} storageKey
+     * @param {string} html
+     */
+    #attachLazyTemplate(precedeScript, storageKey, html) {
+        /** @type {string | null} */
+        let fallbackHtml = null;
+        try {
+            // Ensure it's in sessionStorage (may already be there from sharing path)
+            if (!sessionStorage.getItem(storageKey)) {
+                sessionStorage.setItem(storageKey, html);
+            }
+        } catch (e) {
+            console.warn('[pipe-in] sessionStorage unavailable, using in-memory template.');
+            fallbackHtml = html;
+        }
+
+        /** @type {HTMLTemplateElement | null} */
+        let cachedTemplate = null;
+        Object.defineProperty(precedeScript, Symbol.for('pipe-in:template'), {
+            get() {
+                if (cachedTemplate) return cachedTemplate;
+                const stored = fallbackHtml ?? sessionStorage.getItem(storageKey) ?? '';
+                cachedTemplate = document.createElement('template');
+                cachedTemplate.innerHTML = stored;
+                return cachedTemplate;
+            },
+            configurable: true
+        });
+
+        precedeScript.setAttribute('type', 'cede');
     }
 
     /**
@@ -283,4 +514,4 @@ class PipeIn {
     }
 }
 
-export { PipeIn };
+export { PipeIn, inflight };

@@ -25,6 +25,8 @@ export const emc = {
             start: '${base}-start',
             end: '${base}-end',
             cache: '${base}-cache',
+            noShare: '${base}-no-share',
+            _noShare: { instanceOf: 'Boolean' },
         }
     },
     customData: {
