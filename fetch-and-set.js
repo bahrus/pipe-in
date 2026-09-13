@@ -21,14 +21,63 @@
  */
 
 /**
- * Fetches `url` and returns its (optionally start/end-snipped) text.
+ * Resolves `url` the same way `pipe-in.js`'s own `hydrate()` does: an
+ * absolute (`http(s)://`) or same-origin (`/…`) URL is returned unchanged;
+ * anything else is tried as a bare specifier via `import.meta.resolve`,
+ * falling back to the original string if that fails (a genuine relative
+ * path, or a specifier with no import-map entry).
+ * @param {string} url
+ * @returns {string}
+ */
+export function resolveUrl(url) {
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/')) {
+        return url;
+    }
+    try {
+        return import.meta.resolve(url);
+    } catch {
+        return url;
+    }
+}
+
+/**
+ * The same security gate `pipe-in.js`'s own `hydrate()` applies before
+ * allowing an unsafe method and/or a custom sanitizer: permitted only when
+ * `url` is a same-origin path (starts with `/`) or a bare specifier that
+ * {@link resolveUrl} resolves to something *different* via the page's own
+ * import map. A literal cross-origin absolute URL never gets either
+ * override, no matter what's requested — that's what keeps an
+ * attacker-influenced URL from smuggling in unsanitized content.
+ *
+ * Callers that have their own additional trusted-URL notion (gist-in's
+ * `gist://` USL, whose real destination host is always the fixed
+ * `gist.githubusercontent.com` CDN rather than anything attacker-steerable)
+ * should check that themselves *before* falling back to this — it only knows
+ * about the same-origin/import-map cases pipe-in itself recognizes.
+ *
+ * @param {string} url
+ * @param {boolean} wantsOverride - true if an unsafe method and/or a custom sanitizer was requested
+ * @returns {boolean} true if the override is permitted (or none was requested)
+ */
+export function isOverrideTrusted(url, wantsOverride) {
+    if (!wantsOverride) return true;
+    if (url.startsWith('/')) return true;
+    if (url.startsWith('http://') || url.startsWith('https://')) return false;
+    return resolveUrl(url) !== url;
+}
+
+/**
+ * Fetches `url` and returns its (optionally start/end-snipped) text. `url` is
+ * resolved via {@link resolveUrl} first, so a bare specifier mapped by the
+ * page's import map works here exactly as it does for `import()` itself —
+ * `fetch()` has no notion of import maps on its own.
  * @param {string} url
  * @param {{cache?: RequestCache, start?: string, end?: string}} [opts]
  * @returns {Promise<string>}
  */
 export async function fetchText(url, opts = {}) {
     const { cache = 'default', start, end } = opts;
-    const response = await fetch(url, { cache });
+    const response = await fetch(resolveUrl(url), { cache });
     if (!response.ok) {
         throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
     }

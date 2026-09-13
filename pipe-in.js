@@ -69,19 +69,21 @@ class PipeIn {
 
         const stateAttr = this.#getStateAttr(enhancedElement);
 
-        // Resolve the URL - check if it's a bare specifier via import map
-        const resolvedUrl = this.#resolveUrl(url);
-        const isBareSpecifier = resolvedUrl !== url;
+        // Resolve the URL - check if it's a bare specifier via import map.
+        // Shared with gist-in via fetch-and-set.js, so both packages resolve
+        // and gate URLs identically.
+        const { resolveUrl, isOverrideTrusted } = await import('pipe-in/fetch-and-set.js');
+        const resolvedUrl = resolveUrl(url);
 
         // Validate and resolve the fetch cache policy
         const cachePolicy = this.#resolveCachePolicy(cache);
 
         // Security gate: runScripts, sanitizer overrides, and unsafe methods
         // require the URL to be either a bare specifier (mapped through import map)
-        // or a same-origin URL (absolute path starting with /)
+        // or a same-origin URL (absolute path starting with /).
         const isUnsafeMethod = method.includes('Unsafe');
-        const isSameOrigin = url.startsWith('/');
-        if (!isBareSpecifier && !isSameOrigin && (runScripts || sanitizer !== undefined || isUnsafeMethod)) {
+        const wantsOverride = runScripts || sanitizer !== undefined || isUnsafeMethod;
+        if (!isOverrideTrusted(url, wantsOverride)) {
             console.warn(
                 `[pipe-in] Security: "${method}" with runScripts=${runScripts} ` +
                 `requires a bare specifier URL mapped via import map or a same-origin path. ` +
@@ -429,27 +431,6 @@ class PipeIn {
         });
 
         precedeScript.setAttribute('type', 'cede');
-    }
-
-    /**
-     * Resolves a URL, checking if it's a bare specifier by attempting
-     * import.meta.resolve. If resolution changes the URL, it's a bare specifier.
-     * @param {string} url
-     * @returns {string}
-     */
-    #resolveUrl(url) {
-        // If it's already an absolute URL, return as-is
-        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/')) {
-            return url;
-        }
-        // Try to resolve via import map
-        try {
-            const resolved = import.meta.resolve(url);
-            return resolved;
-        } catch {
-            // If resolution fails, return original URL (relative path)
-            return url;
-        }
     }
 
     /**
