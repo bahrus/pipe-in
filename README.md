@@ -347,6 +347,63 @@ To register this preset with be-hive:
 </be-hive>
 ```
 
+The following is a TODO:
+
+## "Polysketch" support for a platform proposal.
+
+pipe-in also provides support approximating what looks like a [very promising platform (evolving?) proposal](https://github.com/WICG/declarative-partial-updates/blob/main/fragment-include-explainer.md).
+
+That proposal contains some really powerful features *pipe-in* won't attempt to polyfill as it would require deep hacking at best.
+
+### What the polysketch does support:
+
+```html
+<!-- 1. Streaming (Progressive Render) -->
+<!-- In-place: elements render as they arrive from network -->
+<template pipe-in src="feed-stream.html"></template>
+
+
+<!-- Targeted: rows stream progressively into tbody without foster-parenting -->
+<table>
+  <tbody id="table-rows">
+    <?start name="rows-patch"><tr><td>Loading rows...</td></tr><?end>
+  </tbody>
+</table>
+<template for="rows-patch" pipe-in src="rows.html"></template>
+
+
+<!-- 2. Buffered (Atomic Render once complete) -->
+<!-- In-place: parsed to template.content first, inserted in one single batch on EOF -->
+<template pipe-in src="dialog-modal.html" buffer></template>
+
+<!-- Targeted: comments block is parsed fully to fragment and inserted atomically -->
+<section id="comments-section">
+  <?start name="comments-patch">Loading comments...<?end>
+</section>
+<template for="comments-patch" pipe-in src="comments.html" buffer></template>
+
+<!-- External: sanitized by default (scripts stripped) -->
+<template pipe-in  src="user-profile.html"></template>
+
+<!-- External with unsafe token: unsanitized (allows script execution) -->
+<template pipe-in  src="ad.html" sanitize="unsafe"></template>
+
+<!-- External buffered with unsafe token -->
+<template pipe-in src="modal-widget.html" buffer sanitize="unsafe"></template>
+
+```
+
+Out-of-scope:
+
+1.  Support for preloading dependencies
+2.  Integration with fetch-src csp.  Still applies the importmap / relative path checks to allow santize=unsafe.
+3.  URL Rewriting -- pipe-in won't do any rewriting when applied against a template to be consistent with the platform.
+4.  patchLifecycle mutation observer support.
+
+
+
+
+
 ## Viewing Demos Locally
 
 1. Install git
