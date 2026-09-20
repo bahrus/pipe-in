@@ -28,6 +28,11 @@
             "noShare": "${base}-no-share",
             "_noShare": {
                 "instanceOf": "Boolean"
+            },
+            "forName": "${base}-for",
+            "buffer": "${base}-buffer",
+            "_buffer": {
+                "instanceOf": "Boolean"
             }
         }
     },

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pipe-in polysketch (&lt;template for src buffer sanitize&gt;) — buffer path</title>
+    <!-- #include virtual="/imports.html" -->
+    <be-hive>
+        <script type=emc src="pipe-in/emc.json"></script>
+    </be-hive>
+    <script type=module>
+        import 'be-hive/be-hive.js';
+    </script>
+</head>
+<body>
+    <h1>Polysketch — buffer (one-shot) path</h1>
+    <p class="dim">
+        `buffer` needs no experimental flag (plain `setHTML`/`setHTMLUnsafe`),
+        so this page exercises it in an ordinary browser. The default
+        (streaming) path needs Canary + the experimental flag — see
+        `demo/PolysketchProbe.html` / `demo/InlineForProbe.html` for that,
+        verified manually.
+    </p>
+
+    <!-- Case A: marker, default sanitize — <option>/<script> stripped -->
+    <div id="caseA-host"><?marker name="mA"></div>
+    <template pipe-in="/tests/fixtures/probe-unsafe-fragment.html" pipe-in-for="mA" pipe-in-buffer></template>
+
+    <!-- Case B: marker, method=…Unsafe — <option> kept, script parsed but never executed -->
+    <div id="caseB-host"><?marker name="mB"></div>
+    <template pipe-in="/tests/fixtures/probe-unsafe-fragment.html" pipe-in-for="mB" pipe-in-buffer pipe-in-method="streamHTMLUnsafe"></template>
+
+    <!-- Case C: range, default content — placeholder replaced -->
+    <div id="caseC-host"><?start name="rC">Loading rC…<?end></div>
+    <template pipe-in="/tests/fixtures/probe-fragment.html" pipe-in-for="rC" pipe-in-buffer></template>
+
+    <!-- Case D: pipe-in-for names nothing on the page — must be a no-op, template left alone -->
+    <template id="caseD-template" pipe-in="/tests/fixtures/probe-fragment.html" pipe-in-for="does-not-exist" pipe-in-buffer></template>
+
+    <div id=target></div>
+    <script>
+        setTimeout(() => {
+            const a = document.getElementById('caseA-host');
+            const b = document.getElementById('caseB-host');
+            const c = document.getElementById('caseC-host');
+            const dTemplateStillThere = !!document.getElementById('caseD-template');
+
+            const ok =
+                !a.textContent.includes('OptionProbe') &&   // A: stripped by default
+                b.textContent.includes('OptionProbe') &&    // B: kept under sanitize=unsafe
+                c.textContent.includes('PROBE-OK-123') &&   // C: range patched
+                !c.textContent.includes('Loading rC') &&    // C: placeholder cleared
+                dTemplateStillThere;                        // D: unmatched for → no-op
+
+            if (ok) target.setAttribute('mark', 'good');
+            else target.setAttribute('mark', 'bad:' + JSON.stringify({
+                aStripped: !a.textContent.includes('OptionProbe'),
+                bKept: b.textContent.includes('OptionProbe'),
+                cPatched: c.textContent.includes('PROBE-OK-123'),
+                cCleared: !c.textContent.includes('Loading rC'),
+                dTemplateStillThere,
+            }));
+        }, 1500);
+    </script>
+</body>
+</html>

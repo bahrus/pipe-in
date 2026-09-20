@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Polysketch native-behavior probe (no pipe-in.js, no JS enhancement at all)</title>
+    <style>
+        body { font: 15px/1.5 system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+        .case { border: 1px solid #ddd; border-radius: 8px; padding: .8rem 1rem; margin: 1rem 0; }
+        .case h3 { margin: 0 0 .4rem; font-size: .95rem; }
+        code { background: #eee; padding: .05rem .3rem; border-radius: 3px; }
+        pre { background: #f6f6f6; padding: .5rem .7rem; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+        .result { font-weight: 600; margin-top: .4rem; }
+        .pass { color: #0a7d29; }
+        .fail { color: #c00; }
+        #summary { white-space: pre; font: 13px/1.5 ui-monospace, monospace; background: #111; color: #0f0; padding: 1rem; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <h1>Native <code>&lt;template for src buffer sanitize&gt;</code> probe</h1>
+    <p>
+        No <code>pipe-in.js</code>, no JS enhancement of any kind — pure markup,
+        checked against whatever the browser itself does. Open this in real
+        Chrome Canary with <code>--enable-experimental-web-platform-features</code>
+        (or the equivalent <code>chrome://flags</code> toggle) to see what the
+        platform actually supports today versus the "polysketch" README section.
+    </p>
+
+    <div class="case" id="case1">
+        <h3>1. In-place, no <code>for</code>, no <code>buffer</code> (streaming?)</h3>
+        <pre>&lt;template src="/tests/fixtures/probe-fragment.html"&gt;&lt;/template&gt;</pre>
+        <template src="/tests/fixtures/probe-fragment.html"></template>
+        <div class="result" data-for="case1"></div>
+    </div>
+
+    <div class="case" id="case2">
+        <h3>2. In-place, no <code>for</code>, <code>buffer</code></h3>
+        <pre>&lt;template src="/tests/fixtures/probe-fragment.html" buffer&gt;&lt;/template&gt;</pre>
+        <template src="/tests/fixtures/probe-fragment.html" buffer></template>
+        <div class="result" data-for="case2"></div>
+    </div>
+
+    <div class="case" id="case2b">
+        <h3>2b. In-place, explicit <code>for=""</code> (empty string, not omitted)</h3>
+        <pre>&lt;template for="" src="/tests/fixtures/probe-fragment.html"&gt;&lt;/template&gt;</pre>
+        <template for="" src="/tests/fixtures/probe-fragment.html"></template>
+        <div class="result" data-for="case2b"></div>
+    </div>
+
+    <div class="case" id="case3">
+        <h3>3. Targeted single marker, no <code>buffer</code></h3>
+        <pre>&lt;?marker name="t3"&gt;
+&lt;template for="t3" src="/tests/fixtures/probe-fragment.html"&gt;&lt;/template&gt;</pre>
+        <div id="t3-host"><?marker name="t3"></div>
+        <template for="t3" src="/tests/fixtures/probe-fragment.html"></template>
+        <div class="result" data-for="case3"></div>
+    </div>
+
+    <div class="case" id="case4">
+        <h3>4. Targeted single marker, <code>buffer</code></h3>
+        <pre>&lt;?marker name="t4"&gt;
+&lt;template for="t4" src="/tests/fixtures/probe-fragment.html" buffer&gt;&lt;/template&gt;</pre>
+        <div id="t4-host"><?marker name="t4"></div>
+        <template for="t4" src="/tests/fixtures/probe-fragment.html" buffer></template>
+        <div class="result" data-for="case4"></div>
+    </div>
+
+    <div class="case" id="case5">
+        <h3>5. Targeted range (<code>&lt;?start&gt;</code>/<code>&lt;?end&gt;</code>), no <code>buffer</code></h3>
+        <pre>&lt;?start name="t5"&gt;Loading…&lt;?end&gt;
+&lt;template for="t5" src="/tests/fixtures/probe-fragment.html"&gt;&lt;/template&gt;</pre>
+        <div id="t5-host"><?start name="t5">Loading t5…<?end></div>
+        <template for="t5" src="/tests/fixtures/probe-fragment.html"></template>
+        <div class="result" data-for="case5"></div>
+    </div>
+
+    <div class="case" id="case6">
+        <h3>6. Targeted range, <code>buffer</code></h3>
+        <pre>&lt;?start name="t6"&gt;Loading…&lt;?end&gt;
+&lt;template for="t6" src="/tests/fixtures/probe-fragment.html" buffer&gt;&lt;/template&gt;</pre>
+        <div id="t6-host"><?start name="t6">Loading t6…<?end></div>
+        <template for="t6" src="/tests/fixtures/probe-fragment.html" buffer></template>
+        <div class="result" data-for="case6"></div>
+    </div>
+
+    <div class="case" id="case7">
+        <h3>7. Targeted marker, default sanitize (should strip <code>&lt;option&gt;</code> + script)</h3>
+        <pre>&lt;?marker name="t7"&gt;
+&lt;template for="t7" src="/tests/fixtures/probe-unsafe-fragment.html"&gt;&lt;/template&gt;</pre>
+        <div id="t7-host"><?marker name="t7"></div>
+        <template for="t7" src="/tests/fixtures/probe-unsafe-fragment.html"></template>
+        <div class="result" data-for="case7"></div>
+    </div>
+
+    <div class="case" id="case8">
+        <h3>8. Targeted marker, <code>sanitize="unsafe"</code> (should keep <code>&lt;option&gt;</code>, script tag stays but shouldn't execute)</h3>
+        <pre>&lt;?marker name="t8"&gt;
+&lt;template for="t8" src="/tests/fixtures/probe-unsafe-fragment.html" sanitize="unsafe"&gt;&lt;/template&gt;</pre>
+        <div id="t8-host"><?marker name="t8"></div>
+        <template for="t8" src="/tests/fixtures/probe-unsafe-fragment.html" sanitize="unsafe"></template>
+        <div class="result" data-for="case8"></div>
+    </div>
+
+    <h2>Summary (also on <code>window.__probeReport</code> as JSON)</h2>
+    <div id="summary">running…</div>
+
+    <script>
+        function mark(el, ok, text) {
+            el.textContent = (ok ? '✓ PASS — ' : '✗ FAIL — ') + text;
+            el.className = 'result ' + (ok ? 'pass' : 'fail');
+        }
+
+        function report() {
+            const results = {};
+
+            // Case 1/2: in-place — check the whole case container's text,
+            // since native in-place insertion would land as a sibling of the
+            // <template> somewhere inside #case1/#case2.
+            for (const id of ['case1', 'case2', 'case2b']) {
+                const container = document.getElementById(id);
+                const gotIt = container.textContent.includes('PROBE-OK-123');
+                results[id] = gotIt;
+                mark(container.querySelector('.result'), gotIt,
+                    gotIt ? 'content appeared in-place' : 'nothing appeared in-place');
+            }
+
+            // Case 3/4: targeted single marker — check the marker host div.
+            for (const n of [3, 4]) {
+                const host = document.getElementById('t' + n + '-host');
+                const gotIt = host.textContent.includes('PROBE-OK-123');
+                results['case' + n] = gotIt;
+                mark(document.querySelector(`[data-for="case${n}"]`), gotIt,
+                    gotIt ? 'content patched at marker' : 'marker unpatched');
+            }
+
+            // Case 5/6: targeted range — check the range host div, and
+            // whether the "Loading…" placeholder was removed.
+            for (const n of [5, 6]) {
+                const host = document.getElementById('t' + n + '-host');
+                const gotIt = host.textContent.includes('PROBE-OK-123');
+                const placeholderGone = !host.textContent.includes('Loading t' + n);
+                results['case' + n] = gotIt;
+                results['case' + n + '_placeholderCleared'] = placeholderGone;
+                mark(document.querySelector(`[data-for="case${n}"]`), gotIt,
+                    (gotIt ? 'content patched into range' : 'range unpatched') +
+                    ` (placeholder ${placeholderGone ? 'removed' : 'still present'})`);
+            }
+
+            // Case 7: default sanitize — <option> and <script> should both be
+            // stripped/neutralized; textContent "OptionProbe" disappearing
+            // means the option element itself was removed (matches setHTML's
+            // documented option-stripping behavior).
+            {
+                const host = document.getElementById('t7-host');
+                const optionKept = host.textContent.includes('OptionProbe');
+                const scriptRan = !!window.__probeScriptRanCase7;
+                results.case7_optionKept = optionKept;
+                results.case7_scriptRan = scriptRan;
+                mark(document.querySelector('[data-for="case7"]'), !optionKept && !scriptRan,
+                    `option ${optionKept ? 'KEPT (unexpected)' : 'stripped (expected)'}, script ${scriptRan ? 'RAN (unexpected!)' : 'did not run (expected)'}`);
+            }
+
+            // Case 8: sanitize="unsafe" — <option> should survive; script
+            // should still never execute (setHTMLUnsafe parses, never runs
+            // embedded scripts, confirmed in the gist-in work already).
+            {
+                const host = document.getElementById('t8-host');
+                const optionKept = host.textContent.includes('OptionProbe');
+                const scriptRan = !!window.__probeScriptRanCase8;
+                results.case8_optionKept = optionKept;
+                results.case8_scriptRan = scriptRan;
+                mark(document.querySelector('[data-for="case8"]'), optionKept && !scriptRan,
+                    `option ${optionKept ? 'kept (expected)' : 'STRIPPED (unexpected)'}, script ${scriptRan ? 'RAN (unexpected!)' : 'did not run (expected, matches setHTMLUnsafe)'}`);
+            }
+
+            // Also record raw template.content state for each case, since
+            // that tells us WHERE the browser actually put the fetched bytes
+            // (parsed into template.content vs. moved out to the live tree).
+            for (const id of ['case1', 'case2', 'case2b', 'case3', 'case4', 'case5', 'case6']) {
+                const tpl = document.querySelector('#' + id + ' template');
+                results[id + '_templateContentHasIt'] =
+                    !!(tpl && tpl.content && tpl.content.textContent.includes('PROBE-OK-123'));
+            }
+
+            window.__probeReport = results;
+            document.getElementById('summary').textContent = JSON.stringify(results, null, 2);
+        }
+
+        // The window.__probeScriptRanCase7/8 flags: the fixture script sets
+        // window.__probeScriptRan unconditionally, with no way to tell which
+        // case triggered it from inside the fixture itself, so snapshot it
+        // per-case immediately before the next case's fetch could also run
+        // one. Polled cheaply since we don't know the exact fetch-completion
+        // timing.
+        let lastScriptFlag = false;
+        const poll = setInterval(() => {
+            if (window.__probeScriptRan && !lastScriptFlag) {
+                lastScriptFlag = true;
+                // Whichever unsafe case (only case 8 requests sanitize=unsafe;
+                // case 7 is default-sanitized and should never trip this) is
+                // active gets blamed — attribute to case8 since that's the
+                // only one expected to even parse a <script> tag through.
+                window.__probeScriptRanCase8 = true;
+            }
+        }, 50);
+
+        setTimeout(() => { clearInterval(poll); report(); }, 2000);
+    </script>
+</body>
+</html>

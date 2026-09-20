@@ -61,11 +61,23 @@ class PipeIn {
 
     /**
      * Fetches HTML from the configured URL and streams it into the enhanced element.
-     * @param {AP} self 
+     * @param {AP} self
      * @returns {import('./types/pipe-in/types').ProPAP}
      */
     async hydrate(self){
-        const { enhancedElement, url, method, sanitizer, runScripts, shadowrootmode, injectBase, start, end, cache, noShare } = self;
+        const { enhancedElement, url } = self;
+        // "Polysketch" support for a <template> target — README, "Polysketch
+        // support for a platform proposal" — a different attribute
+        // vocabulary (`${base}-for`/`${base}-buffer`, not the platform's own
+        // bare `for`/`src`/`buffer`; see emc.mjs for why that matters — it's
+        // not just naming, current browsers actively mishandle the literal
+        // names) and a different insertion model (target a
+        // <?marker>/<?start>…<?end> elsewhere in the document, not "self").
+        if(enhancedElement.localName === 'template'){
+            return this.#hydrateTemplate(self);
+        }
+
+        const { method, sanitizer, runScripts, shadowrootmode, injectBase, start, end, cache, noShare } = self;
 
         const stateAttr = this.#getStateAttr(enhancedElement);
 
@@ -279,6 +291,165 @@ class PipeIn {
             enhancedElement.dispatchEvent(new Event('error'));
             return /** @type {PAP} */ ({resolved: false});
         }
+    }
+
+    /**
+     * The `<template pipe-in="…url…" pipe-in-for="…" pipe-in-buffer
+     * pipe-in-method="streamHTMLUnsafe">` "polysketch" path — README,
+     * "Polysketch support for a platform proposal". Deliberately namespaced,
+     * *not* the platform's own bare `for`/`src`/`buffer`/`sanitize` — see
+     * emc.mjs for why (current Chromium, unflagged, already silently
+     * mishandles the literal `for`+`src` pair). `pipe-in`/`⇥`'s own value is
+     * still the URL here, exactly as everywhere else in this file; `method`
+     * is the same prop the classic path uses, reused for its safety axis only
+     * (`.includes('Unsafe')`) — position values (before/after/append/…)
+     * don't apply to a marker/range target and are ignored.
+     *
+     * `pipe-in-for` names a `<?marker name="…">` or a `<?start name="…">`…
+     * `<?end>` pair to patch — searched via `enhancedElement.getRootNode()`,
+     * no hint attribute yet (a full walk every time; fine for a first cut).
+     * Omitted or unmatched: warns and does nothing.
+     *
+     * `pipe-in-buffer` present → fetch fully, sanitize into a detached
+     * scratch element, splice the resulting *bare* nodes in — no wrapper, so
+     * this works regardless of the target's HTML content model (table rows
+     * into a `<tbody>`, `<option>`s into a `<select>`, …). This is
+     * `fetch-and-set.js` verbatim, the same one-shot path `gist-in` uses.
+     *
+     * `pipe-in-buffer` absent (default) → real, live streaming via
+     * `streamHTML`/`streamHTMLUnsafe` — but those are instance methods on a
+     * concrete element, and a `<?marker>`/`<?start>`/`<?end>` PI has no
+     * content sink of its own to call them on. So this inserts a plain
+     * `<div>` *wrapper* at the target first, then streams into that. Real,
+     * live streaming, using only APIs that exist today — but it only works
+     * for content whose parent context tolerates an extra wrapper `<div>`.
+     * Content with a strict content model (table rows, `<option>`s, …) will
+     * get foster-parented right back out of a generic wrapper — for that,
+     * use `pipe-in-buffer` instead, which needs no wrapper at all. Needs a
+     * browser where `streamHTML`/`streamHTMLUnsafe` are real (Canary +
+     * `--enable-experimental-web-platform-features` today); throws a clear
+     * error naming `pipe-in-buffer` as the fallback everywhere else, same as
+     * `pipe-in`'s existing self-streaming path already did before this.
+     *
+     * @param {AP} self
+     * @returns {import('./types/pipe-in/types').ProPAP}
+     */
+    async #hydrateTemplate(self){
+        const { enhancedElement, url, forName, buffer, method } = /** @type {any} */ (self);
+        const wantsUnsafe = typeof method === 'string' && method.includes('Unsafe');
+
+        const { resolveUrl, isOverrideTrusted, fetchText, setInto } = await import('pipe-in/fetch-and-set.js');
+
+        // Same trust rule as pipe-in's own self-streaming path (same-origin
+        // path, or a bare specifier mapped via the page's import map) — no
+        // separate allowlist for this mode; a deliberate scope decision (see
+        // the README's polysketch "out of scope" list).
+        if(!isOverrideTrusted(url, wantsUnsafe)){
+            console.warn(
+                `[pipe-in] Security: an *Unsafe pipe-in-method requires a same-origin path ` +
+                `or an import-map-mapped bare specifier. URL "${url}" is not permitted.`
+            );
+            return /** @type {PAP} */ ({resolved: false});
+        }
+
+        const root = /** @type {Document | ShadowRoot} */ (enhancedElement.getRootNode());
+        const target = this.#findPatchTarget(root, forName);
+        if(!target){
+            console.warn(
+                `[pipe-in] pipe-in-for="${forName || ''}" — no matching <?marker name="${forName}"> ` +
+                `or <?start name="${forName}">…<?end> pair found.`
+            );
+            return /** @type {PAP} */ ({resolved: false});
+        }
+
+        try {
+            if(buffer){
+                const text = await fetchText(url);
+                const scratch = document.createElement('div');
+                setInto(scratch, text, { unsafe: wantsUnsafe });
+                this.#applyPatch(target, Array.from(scratch.childNodes));
+            } else {
+                const wrapper = document.createElement('div');
+                this.#applyPatch(target, [wrapper]);
+                const streamMethod = wantsUnsafe ? 'streamHTMLUnsafe' : 'streamHTML';
+                if(typeof /** @type {any} */ (wrapper)[streamMethod] !== 'function'){
+                    throw new Error(
+                        `Method "${streamMethod}" is not supported on the target — this browser doesn't ` +
+                        `yet implement native HTML streaming; add the "pipe-in-buffer" attribute for a ` +
+                        `one-shot fallback that works today.`
+                    );
+                }
+                const resolvedUrl = resolveUrl(url);
+                const response = await fetch(resolvedUrl);
+                if(!response.ok) throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
+                const writableSink = /** @type {any} */ (wrapper)[streamMethod]();
+                if(response.body){
+                    await response.body.pipeThrough(new TextDecoderStream()).pipeTo(writableSink);
+                }
+            }
+        } catch(e) {
+            console.error(`[pipe-in] Error patching content from "${url}":`, e);
+            return /** @type {PAP} */ ({resolved: false});
+        }
+
+        enhancedElement.remove();
+        enhancedElement.dispatchEvent(new Event('load'));
+        return /** @type {PAP} */ ({resolved: true});
+    }
+
+    /**
+     * @typedef {{type: 'marker', node: ProcessingInstruction} | {type: 'range', start: ProcessingInstruction, end: ProcessingInstruction}} PatchTarget
+     */
+
+    /**
+     * Walks `root` for a `<?marker name="name">` (point insertion) or a
+     * `<?start name="name">`…`<?end>` pair (range replacement) — the
+     * platform's own PI vocabulary (`<?end>` itself carries no name; the
+     * first `<?end>` following a matched `<?start>` closes it). `null` if
+     * neither is found.
+     * @param {Document | ShadowRoot} root
+     * @param {string} name
+     * @returns {PatchTarget | null}
+     */
+    #findPatchTarget(root, name){
+        if(!name) return null;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_PROCESSING_INSTRUCTION);
+        /** @type {ProcessingInstruction | null} */
+        let node;
+        /** @type {ProcessingInstruction | null} */
+        let startNode = null;
+        while((node = /** @type {ProcessingInstruction | null} */ (walker.nextNode()))){
+            if(node.target === 'marker'){
+                const m = /^name=(["'])(.*?)\1\s*$/.exec(node.data.trim());
+                if(m && m[2] === name) return { type: 'marker', node };
+            } else if(node.target === 'start'){
+                const m = /^name=(["'])(.*?)\1\s*$/.exec(node.data.trim());
+                if(m && m[2] === name) startNode = node;
+            } else if(node.target === 'end' && startNode){
+                return { type: 'range', start: startNode, end: node };
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Replaces a marker with `nodes`, or clears everything currently between
+     * a range's `start`/`end` and inserts `nodes` before `end`.
+     * @param {PatchTarget} target
+     * @param {Node[]} nodes
+     */
+    #applyPatch(target, nodes){
+        if(target.type === 'marker'){
+            target.node.replaceWith(...nodes);
+            return;
+        }
+        let n = target.start.nextSibling;
+        while(n && n !== target.end){
+            const next = n.nextSibling;
+            n.remove();
+            n = next;
+        }
+        target.end.before(...nodes);
     }
 
     /**

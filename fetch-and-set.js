@@ -11,11 +11,16 @@
  *
  * Why this instead of `pipe-in.js`'s own `target[method]()` (`streamHTML`
  * etc.)? Those are the Declarative Partial Updates proposal's streaming
- * methods, and verified against a real, current browser (a locally installed
- * Chromium reporting itself as Chrome/153) — they don't exist yet, anywhere.
- * `setHTML` / `setHTMLUnsafe` do, right now, and were verified here to: (a)
- * apply the built-in default sanitizer when called with no options — same
- * "safe by default" behavior pipe-in documents — and (b) work perfectly on a
+ * methods. Verified against plain, unflagged Chromium (Chrome/153, what
+ * Playwright bundles here) they're absent — but they're real and callable in
+ * Chrome Canary (155.x) with `--enable-experimental-web-platform-features`
+ * set, and on the public roadmap for stable Chrome around version 155
+ * (~Oct 2026, per chromestatus.com/roadmap — subject to slipping). So this
+ * module's job isn't "the only real option" so much as "the one that also
+ * works in a browser without the flag." `setHTML` / `setHTMLUnsafe` need no
+ * flag at all and were verified here to: (a) apply the built-in default
+ * sanitizer when called with no options — same "safe by default" behavior
+ * pipe-in documents — and (b) work perfectly on a
  * fully detached element, never inserted into any document. Both matter for
  * gist-in's one-shot "swap a marker for fetched content" use case.
  */

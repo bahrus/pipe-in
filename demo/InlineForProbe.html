@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Inline (no src) for/marker probe — standard, unflagged Chrome</title>
+</head>
+<body>
+    <p>No <code>src</code>, no streaming API, no flag — just inline template content plus <code>for</code> targeting a <code>&lt;?marker&gt;</code> / <code>&lt;?start&gt;&lt;?end&gt;</code>. Testing whether this part works in an ordinary, unflagged browser.</p>
+
+    <div id="marker-host"><?marker name="m1"></div>
+    <template for="m1">INLINE-MARKER-OK</template>
+
+    <div id="range-host"><?start name="r1">Loading r1…<?end></div>
+    <template for="r1">INLINE-RANGE-OK</template>
+
+    <div id="summary"></div>
+    <script>
+        const report = {
+            markerHostText: document.getElementById('marker-host').textContent,
+            markerPatched: document.getElementById('marker-host').textContent.includes('INLINE-MARKER-OK'),
+            rangeHostText: document.getElementById('range-host').textContent,
+            rangePatched: document.getElementById('range-host').textContent.includes('INLINE-RANGE-OK'),
+            rangePlaceholderCleared: !document.getElementById('range-host').textContent.includes('Loading r1'),
+        };
+        window.__inlineProbeReport = report;
+        document.getElementById('summary').textContent = JSON.stringify(report, null, 2);
+    </script>
+</body>
+</html>

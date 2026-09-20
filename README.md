@@ -347,61 +347,85 @@ To register this preset with be-hive:
 </be-hive>
 ```
 
-The following is a TODO:
-
 ## "Polysketch" support for a platform proposal.
 
-pipe-in also provides support approximating what looks like a [very promising platform (evolving?) proposal](https://github.com/WICG/declarative-partial-updates/blob/main/fragment-include-explainer.md).
+pipe-in also provides support approximating what looks like a [very promising platform (evolving?) proposal](https://github.com/WICG/declarative-partial-updates/blob/main/fragment-include-explainer.md) — a `<template for="…" src="…" buffer sanitize="…">` shape.
 
 That proposal contains some really powerful features *pipe-in* won't attempt to polyfill as it would require deep hacking at best.
 
-### What the polysketch does support:
+**Important: pipe-in's own attributes here are namespaced (`pipe-in`, `pipe-in-for`,
+`pipe-in-buffer`, `pipe-in-method`), not the platform's own bare `for`/`src`/
+`buffer`/`sanitize` names.** This isn't just a style choice — verified live: current
+Chromium, **with no experimental flag at all**, already silently engages a
+`<template for="x" src="y">` whose `for` matches a real `<?marker>`/`<?start>`
+on the page. It removes the template at parse time, before any script
+(including pipe-in itself) gets a chance to react — and without
+`--enable-experimental-web-platform-features` it never actually delivers the
+fetched content, a genuine, silent content-loss bug. A JS enhancement keyed on
+the literal `for`+`src` pair can never win that race in any browser available
+today. Namespaced attribute names are invisible to that native mechanism
+entirely, so pipe-in reads those instead:
 
 ```html
-<!-- 1. Streaming (Progressive Render) -->
-<!-- In-place: elements render as they arrive from network -->
-<template pipe-in src="feed-stream.html"></template>
+<!-- 1. Streaming (Progressive Render) — needs a browser where streamHTML/
+     streamHTMLUnsafe are real: Chrome Canary + 
+     --enable-experimental-web-platform-features today. -->
+
+<!-- Targeted: patches into a <?marker>, via a live wrapper <div> pipe-in
+     inserts at the marker and streams into (see README caveat below on
+     content-model-constrained targets like table rows). -->
+<div>
+  <?marker name="rows-patch">
+</div>
+<template pipe-in="rows.html" pipe-in-for="rows-patch"></template>
 
 
-<!-- Targeted: rows stream progressively into tbody without foster-parenting -->
-<table>
-  <tbody id="table-rows">
-    <?start name="rows-patch"><tr><td>Loading rows...</td></tr><?end>
-  </tbody>
-</table>
-<template for="rows-patch" pipe-in src="rows.html"></template>
+<!-- 2. Buffered (Atomic Render once complete) — real, shipping today via
+     the HTML Sanitizer API (setHTML/setHTMLUnsafe), no flag needed. -->
 
-
-<!-- 2. Buffered (Atomic Render once complete) -->
-<!-- In-place: parsed to template.content first, inserted in one single batch on EOF -->
-<template pipe-in src="dialog-modal.html" buffer></template>
-
-<!-- Targeted: comments block is parsed fully to fragment and inserted atomically -->
+<!-- Targeted range: comments block is parsed fully then inserted atomically,
+     replacing whatever was between <?start>/<?end> -->
 <section id="comments-section">
   <?start name="comments-patch">Loading comments...<?end>
 </section>
-<template for="comments-patch" pipe-in src="comments.html" buffer></template>
+<template pipe-in="comments.html" pipe-in-for="comments-patch" pipe-in-buffer></template>
 
-<!-- External: sanitized by default (scripts stripped) -->
-<template pipe-in  src="user-profile.html"></template>
+<!-- Buffered, default sanitize (scripts + several elements stripped) -->
+<template pipe-in="user-profile.html" pipe-in-for="profile-patch" pipe-in-buffer></template>
 
-<!-- External with unsafe token: unsanitized (allows script execution) -->
-<template pipe-in  src="ad.html" sanitize="unsafe"></template>
-
-<!-- External buffered with unsafe token -->
-<template pipe-in src="modal-widget.html" buffer sanitize="unsafe"></template>
-
+<!-- Buffered, unsafe (reuses pipe-in's own `pipe-in-method`, same as the
+     classic path — any value containing "Unsafe" opts out of sanitizing;
+     scripts are still never executed, same as setHTMLUnsafe elsewhere) -->
+<template pipe-in="ad.html" pipe-in-for="ad-patch" pipe-in-buffer pipe-in-method="streamHTMLUnsafe"></template>
 ```
+
+- **`pipe-in-for`** names a `<?marker name="…">` (single point) or a
+  `<?start name="…">`…`<?end>` pair (a range — patching it removes whatever
+  currently sits between the two markers and inserts the new content before
+  `<?end>`). Omitted or unmatched: warns to the console, does nothing, template
+  is left in place.
+- **`pipe-in-buffer` absent (default) — real streaming, with a real caveat.**
+  `streamHTML`/`streamHTMLUnsafe` are instance methods on a concrete element;
+  a `<?marker>`/`<?start>`/`<?end>` PI has no content sink of its own. So pipe-in
+  inserts a plain `<div>` wrapper at the target and streams into that — genuine,
+  live streaming, using only real APIs. The catch: this only works when the
+  target's HTML content model tolerates an extra wrapper `<div>`. Content with a
+  strict content model — table rows into a `<tbody>`, `<option>`s into a
+  `<select>` — gets foster-parented right back out of a generic wrapper. For
+  that content, use `pipe-in-buffer`, which needs no wrapper at all.
+- **`pipe-in-buffer` present** — one-shot: fetch fully, sanitize into a detached
+  scratch element via `setHTML`/`setHTMLUnsafe`, splice the resulting *bare*
+  nodes in (no wrapper) — works regardless of content model. This is
+  `fetch-and-set.js` verbatim, the same path `gist-in` already uses.
 
 Out-of-scope:
 
 1.  Support for preloading dependencies
-2.  Integration with fetch-src csp.  Still applies the importmap / relative path checks to allow santize=unsafe.
+2.  Integration with fetch-src csp.  Still applies the importmap / relative path checks to allow an `*Unsafe` `pipe-in-method`.
 3.  URL Rewriting -- pipe-in won't do any rewriting when applied against a template to be consistent with the platform.
-4.  patchLifecycle mutation observer support.
-
-
-
+4.  patchLifecycle mutation observer support — attributes are read once, at hydration; changing them afterward has no effect.
+5.  `pipe-in-cache` (the classic path's cache-policy override) isn't wired up for this mode yet.
+6.  `nonce` / `crossorigin` / `referrerpolicy` aren't wired up yet.
 
 
 ## Viewing Demos Locally
