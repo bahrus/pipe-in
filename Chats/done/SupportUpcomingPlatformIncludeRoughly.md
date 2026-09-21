@@ -458,3 +458,76 @@ page. The namespaced names avoid this too, for free.
 for it), and the naming question for `<?start>`/`<?end>` internals possibly
 colliding conceptually with `pipe-in-start`/`pipe-in-end` (avoided in code —
 `#findPatchTarget` has its own vocabulary, no shared module with `snip.js`).
+
+## Bruce's Response IV
+
+Your explanation for what you did makes sense.  I think we are on the same page.  I reread the README.md and I think everything makes sense, and I don't think we can do any better, you convinced me.
+
+One thing that the README.me states that doesn't sound right, I want to make sure:
+
+> Support for snipping
+> When importing a full HTML page or a large fragment, you often only need a specific portion. The [base]-start and [base]-end attributes let you extract a slice of the streamed content. Both are optional and can be used independently or together:
+
+> [base]-start — Content before this marker is discarded. The marker itself and everything after it is kept.
+> [base]-end — Content from this marker onward is discarded. Only content before it is kept.
+> When both are present, only the content between start (inclusive) and end (exclusive) is emitted.
+
+> Snipping runs before URL rewriting, so markers match the original source HTML.
+
+```html
+<article pipe-in=/demo/partials/sample.html
+         pipe-in-shadowrootmode=open
+         pipe-in-start="<body"
+         pipe-in-end="</body>"
+         pipe-in-base
+         pipe-in-method=streamHTMLUnsafe>
+    <p>Loading...</p>
+</article>
+```
+
+I think we want end to be inclusive, don't we, so it includes the \</body>, at least by default?  Is that really what the code is doing?
+
+Perhaps as needs arise, we should be able to specify inclusive / exclusive.
+
+## Claude's Response V
+
+Checked `snip.js` directly rather than go by the README's prose alone — its
+own doc comment says it outright: `@param {string} [end] - Marker string to
+stop snipping at (exclusive)`, and the implementation matches
+(`buffer.slice(0, idx)` — everything *up to* the match, the match itself never
+enqueued). So **the code and the README agree with each other** — both say
+`end` is exclusive. No mismatch there; the question is whether that's the
+behavior you actually want, and I think for this specific example it doesn't
+matter at all:
+
+Verified rather than assumed — ran `setHTMLUnsafe` with and without the
+closing tag:
+
+```js
+div.setHTMLUnsafe('<body class="x">hello</body>')  // → "hello"
+div.setHTMLUnsafe('<body class="x">hello')          // → "hello"   (identical)
+```
+
+Both produce exactly the same result. `<body>` has no legal place inside a
+parsed *fragment* (there's nowhere to nest it), so the HTML fragment parser
+strips the opening `<body ...>` **and** discards a stray `</body>` regardless
+of whether `snip.js` hands it one — the exclusive-vs-inclusive question is
+moot for this particular example specifically, because the tag being
+included-or-not is itself thrown away one step later by the parser either
+way. So nothing to fix here — the doc example works correctly today, just not
+for the reason its "end inclusive?" framing implied.
+
+The general point still stands, though, for an end marker that *isn't* itself
+a stripped/void element — snipping to `</table>` or `</section>`, say, would
+genuinely come out missing that closing tag today, and *would* visibly differ
+between inclusive and exclusive. Agree an opt-in toggle is a reasonable,
+small, backward-compatible addition for that case (default stays exclusive,
+matching today's documented behavior, so nothing existing changes). Given you
+framed it as "as needs arise" rather than "do this now" — want it built this
+round, or left as a backlog item until a real case shows up?
+
+## Bruce's Response V
+
+Let's do this.  Please create a small separate TODO item to be able to specify inclusive / exclusive in this folder.  Let's also move this document into the [done](../done/) folder.
+
+
