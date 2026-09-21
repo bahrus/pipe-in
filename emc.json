@@ -24,6 +24,14 @@
             },
             "start": "${base}-start",
             "end": "${base}-end",
+            "startExclusive": "${base}-start-exclusive",
+            "_startExclusive": {
+                "instanceOf": "Boolean"
+            },
+            "endExclusive": "${base}-end-exclusive",
+            "_endExclusive": {
+                "instanceOf": "Boolean"
+            },
             "cache": "${base}-cache",
             "noShare": "${base}-no-share",
             "_noShare": {

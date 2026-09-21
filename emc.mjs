@@ -24,6 +24,15 @@ export const emc = {
             _injectBase: { instanceOf: 'Boolean' },
             start: '${base}-start',
             end: '${base}-end',
+            // Both markers are inclusive by default (their own text stays in
+            // the output) — these opt a marker's own text back out, per
+            // marker. See Chats/TODO/SnipEndInclusiveOption.md: `end` used to
+            // be exclusive-only; changed with no compatibility shim (pipe-in
+            // has zero published dependents).
+            startExclusive: '${base}-start-exclusive',
+            _startExclusive: { instanceOf: 'Boolean' },
+            endExclusive: '${base}-end-exclusive',
+            _endExclusive: { instanceOf: 'Boolean' },
             cache: '${base}-cache',
             noShare: '${base}-no-share',
             _noShare: { instanceOf: 'Boolean' },

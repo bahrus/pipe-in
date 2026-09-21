@@ -77,7 +77,7 @@ class PipeIn {
             return this.#hydrateTemplate(self);
         }
 
-        const { method, sanitizer, runScripts, shadowrootmode, injectBase, start, end, cache, noShare } = self;
+        const { method, sanitizer, runScripts, shadowrootmode, injectBase, start, end, startExclusive, endExclusive, cache, noShare } = self;
 
         const stateAttr = this.#getStateAttr(enhancedElement);
 
@@ -202,7 +202,7 @@ class PipeIn {
 
                 if (start || end) {
                     const {snipTransform} = await import('pipe-in/snip.js');
-                    stream = stream.pipeThrough(snipTransform(start, end));
+                    stream = stream.pipeThrough(snipTransform(start, end, { startExclusive, endExclusive }));
                 }
                 if (injectBase) {
                     // Derive a proper absolute base URL

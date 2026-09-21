@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>snip start/end — inclusive-by-default, opt-in exclusive</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <p>
+        Exercises fetch-and-set.js's fetchText (which delegates to snip.js's
+        snipTransform) directly against a static fixture — no streamHTML
+        involved, so this runs in any browser (see the parent conversation for
+        why the classic streaming path can't be exercised this way).
+    </p>
+    <div id="target"></div>
+    <script type="module">
+        const { fetchText } = await import('pipe-in/fetch-and-set.js');
+        const url = '/tests/fixtures/snip-fixture.html';
+
+        const cases = {
+            defaultInclusive: await fetchText(url, { start: '[[START]]', end: '[[END]]' }),
+            startExclusive:   await fetchText(url, { start: '[[START]]', end: '[[END]]', startExclusive: true }),
+            endExclusive:     await fetchText(url, { start: '[[START]]', end: '[[END]]', endExclusive: true }),
+            bothExclusive:    await fetchText(url, { start: '[[START]]', end: '[[END]]', startExclusive: true, endExclusive: true }),
+            startOnlyDefault: await fetchText(url, { start: '[[START]]' }),
+            endOnlyDefault:   await fetchText(url, { end: '[[END]]' }),
+        };
+
+        const expected = {
+            defaultInclusive: '[[START]]MIDDLE-CONTENT[[END]]',
+            startExclusive:   'MIDDLE-CONTENT[[END]]',
+            endExclusive:     '[[START]]MIDDLE-CONTENT',
+            bothExclusive:    'MIDDLE-CONTENT',
+            startOnlyDefault: '[[START]]MIDDLE-CONTENT[[END]]SUFFIX-TEXT',
+            endOnlyDefault:   'PREFIX-TEXT[[START]]MIDDLE-CONTENT[[END]]',
+        };
+
+        const mismatches = Object.keys(expected).filter(k => cases[k] !== expected[k]);
+
+        const target = document.getElementById('target');
+        if (mismatches.length === 0) {
+            target.setAttribute('mark', 'good');
+        } else {
+            target.setAttribute('mark', 'bad:' + JSON.stringify({ mismatches, cases, expected }));
+        }
+    </script>
+</body>
+</html>

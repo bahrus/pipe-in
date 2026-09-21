@@ -77,11 +77,17 @@ export function isOverrideTrusted(url, wantsOverride) {
  * page's import map works here exactly as it does for `import()` itself —
  * `fetch()` has no notion of import maps on its own.
  * @param {string} url
- * @param {{cache?: RequestCache, start?: string, end?: string}} [opts]
+ * @param {{
+ *   cache?: RequestCache,
+ *   start?: string,
+ *   end?: string,
+ *   startExclusive?: boolean,
+ *   endExclusive?: boolean,
+ * }} [opts]
  * @returns {Promise<string>}
  */
 export async function fetchText(url, opts = {}) {
-    const { cache = 'default', start, end } = opts;
+    const { cache = 'default', start, end, startExclusive, endExclusive } = opts;
     const response = await fetch(resolveUrl(url), { cache });
     if (!response.ok) {
         throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
@@ -91,7 +97,7 @@ export async function fetchText(url, opts = {}) {
 
     if (start || end) {
         const { snipTransform } = await import('./snip.js');
-        stream = stream.pipeThrough(snipTransform(start, end));
+        stream = stream.pipeThrough(snipTransform(start, end, { startExclusive, endExclusive }));
     }
 
     const reader = stream.getReader();
@@ -133,10 +139,12 @@ export function setInto(target, text, opts = {}) {
  *   cache?: RequestCache,
  *   start?: string,
  *   end?: string,
+ *   startExclusive?: boolean,
+ *   endExclusive?: boolean,
  * }} [opts]
  */
 export async function fetchAndSet(url, target, opts = {}) {
-    const { unsafe, sanitizer, cache, start, end } = opts;
-    const text = await fetchText(url, { cache, start, end });
+    const { unsafe, sanitizer, cache, start, end, startExclusive, endExclusive } = opts;
+    const text = await fetchText(url, { cache, start, end, startExclusive, endExclusive });
     setInto(target, text, { unsafe, sanitizer });
 }

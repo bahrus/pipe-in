@@ -191,10 +191,15 @@ pipe-in sets attributes on the enhanced element to indicate the current state of
 
 When importing a full HTML page or a large fragment, you often only need a specific portion. The `[base]-start` and `[base]-end` attributes let you extract a slice of the streamed content. Both are optional and can be used independently or together:
 
-- **`[base]-start`** — Content before this marker is discarded. The marker itself and everything after it is kept.
-- **`[base]-end`** — Content from this marker onward is discarded. Only content before it is kept.
+- **`[base]-start`** — Content before this marker is discarded. The marker's own text and everything after it is kept.
+- **`[base]-end`** — Content after this marker is discarded. Content up to and including the marker's own text is kept.
 
-When both are present, only the content between start (inclusive) and end (exclusive) is emitted.
+When both are present, only the content between them is emitted, **including both markers' own text** — `[base]-start` and `[base]-end` are inclusive by default. Add `[base]-start-exclusive` and/or `[base]-end-exclusive` (boolean attributes) to drop a marker's own text from the output instead:
+
+| | `[base]-start` alone | `[base]-end` alone |
+|---|---|---|
+| default (inclusive) | marker onward, marker kept | up to marker, marker kept |
+| `-exclusive` | marker onward, marker dropped | up to marker, marker dropped |
 
 Snipping runs before URL rewriting, so markers match the original source HTML.
 
@@ -208,6 +213,15 @@ Snipping runs before URL rewriting, so markers match the original source HTML.
     <p>Loading...</p>
 </article>
 ```
+
+The example above keeps the closing `</body>` in the extracted slice (default,
+inclusive `[base]-end`) — though for this specific case it makes no
+observable difference either way, since `<body>`/`</body>` have no legal
+place inside a parsed HTML *fragment* and get stripped by the sanitizer
+regardless of whether `snip` hands it the closing tag or not. The inclusive
+default matters for an end marker that *is* real, surviving content — e.g.
+`pipe-in-end="</table>"` keeps the `</table>` in the output by default; add
+`pipe-in-end-exclusive` to drop it.
 
 ## Shared streams
 
