@@ -14,15 +14,15 @@ But for an end marker that *is* itself real, surviving content — snipping to
 fragment comes out missing that closing tag, which would visibly differ from
 an inclusive-end result.
 
-The number of dependencies on pipe-in is [currently 0](https://www.npmjs.com/package/pipe-in?activeTab=dependents)so I don't think we should be concerned at all about backwards compatibility.
+The number of dependencies on pipe-in is [currently 0](https://www.npmjs.com/package/pipe-in?activeTab=dependents) so I don't think we should be concerned at all about backwards compatibility.
 
 We should change the default for pipe-in-start and pipe-in-end to be inclusive.
 
-
-
-Add an opt-in way to make `pipe-in-end` inclusive instead of exclusive.
+~~Add an opt-in way to make `pipe-in-end` inclusive instead of exclusive.
 **Default must stay exclusive** — today's documented, tested behavior — so
-nothing existing changes for anyone not using the new opt-in.
+nothing existing changes for anyone not using the new opt-in.~~
+
+To override the defaults, add attributes  pipe-in-end-exclusive and/or pipe-in-start-exclusive. 
 
 ## Notes carried over from the parent conversation
 
